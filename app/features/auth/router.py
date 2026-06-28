@@ -92,8 +92,10 @@ async def reset_password(
 @router.post("/logout", response_model=MessageResponse, summary="Log out")
 async def logout(
     payload: LogoutRequest,
-    _current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> MessageResponse:
-    """Revoke the supplied refresh token (requires a valid access token)."""
-    await services.logout(token=payload.refresh_token)
+    """Revoke the caller's own refresh token (requires a valid access token)."""
+    await services.logout(
+        token=payload.refresh_token, current_user_id=str(current_user.id)
+    )
     return MessageResponse(message="Logged out successfully")

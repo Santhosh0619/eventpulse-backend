@@ -1,5 +1,7 @@
 """Tests for the auth feature: register, login, refresh, email/password, logout."""
 
+from datetime import UTC, datetime, timedelta
+
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -325,3 +327,44 @@ async def test_logout_without_auth_returns_401(client: AsyncClient) -> None:
     """Logout requires a valid access token."""
     resp = await client.post(LOGOUT_URL, json={"refresh_token": "anything"})
     assert resp.status_code == 401
+
+
+async def test_logout_does_not_revoke_another_users_token(
+    client: AsyncClient, make_user
+) -> None:
+    """A user cannot revoke a refresh token that belongs to someone else."""
+    await make_user(email="attacker@example.com")
+    await make_user(email="victim@example.com")
+    attacker = await _login(client, "attacker@example.com")
+    victim = await _login(client, "victim@example.com")
+
+    # Attacker (authenticated) submits the victim's refresh token to logout.
+    headers = {"Authorization": f"Bearer {attacker['access_token']}"}
+    resp = await client.post(
+        LOGOUT_URL,
+        json={"refresh_token": victim["refresh_token"]},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+
+    # The victim's refresh token must still be usable.
+    still_valid = await client.post(
+        REFRESH_URL, json={"refresh_token": victim["refresh_token"]}
+    )
+    assert still_valid.status_code == 200
+
+
+async def test_reset_password_expired_token_returns_400(
+    client: AsyncClient, make_user, db_session: AsyncSession
+) -> None:
+    """An expired password-reset token is rejected with 400."""
+    user = await make_user(email="expired@example.com")
+    user.password_reset_token = "expired-token"
+    user.password_reset_expires = datetime.now(UTC) - timedelta(hours=1)
+    await db_session.commit()
+
+    resp = await client.post(
+        RESET_URL,
+        json={"token": "expired-token", "new_password": "BrandNewPass9!"},
+    )
+    assert resp.status_code == 400

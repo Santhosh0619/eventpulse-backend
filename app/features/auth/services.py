@@ -181,14 +181,19 @@ async def reset_password(db: AsyncSession, *, token: str, new_password: str) -> 
     await crud.update_password(db, user, hash_password(new_password))
 
 
-async def logout(*, token: str) -> None:
-    """Revoke a refresh token by blacklisting its JTI until natural expiry.
+async def logout(*, token: str, current_user_id: str) -> None:
+    """Revoke the caller's own refresh token by blacklisting its JTI.
 
-    Invalid tokens are ignored so logout is always idempotent.
+    Only revokes the token if it belongs to ``current_user_id``; a token for a
+    different user is ignored, preventing cross-user revocation. Invalid tokens
+    are ignored too, so logout is always idempotent.
     """
     try:
         payload = decode_token(token)
     except JWTError:
+        return
+
+    if payload.get("sub") != current_user_id:
         return
 
     jti = payload.get("jti")

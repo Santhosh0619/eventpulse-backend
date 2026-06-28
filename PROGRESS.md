@@ -1,45 +1,37 @@
 # EventPulse Backend — Progress Tracker
 
 ## Current Status
-- Phase: 0 (Setup) — COMPLETE
-- Last completed: Phase 0 full infrastructure + project foundation
-- Next step: Phase 2 — Authentication & User Management (first feature: auth)
+- Phase: 2 (Authentication & User Management) — IN PROGRESS
+- Last completed: `auth` feature (PR #1 merged, squash af68c4b)
+- Next step: `users` feature (profile CRUD, avatar upload)
 
 ## Completed Phases
 - Phase 0 — Automation infrastructure + project foundation
 
-## Phase 0 Summary
-- CLAUDE.md, PROGRESS.md, README.md created
-- .claude/ automation: hooks (ruff format, dangerous-command block, ntfy Stop),
-  subagents (code-reviewer, test-writer, security-reviewer, pr-reviewer),
-  skills (review, commit, create-pr, new-feature)
-- Git initialized, pushed to https://github.com/Santhosh0619/eventpulse-backend (main)
-- Docker: docker-compose.yml (postgres 16, redis, pgadmin:5050, mailhog:1025/8025) +
-  multi-stage Dockerfile (python:3.12-slim) + api service
-- .env (gitignored, real secrets) + .env.example (committed, placeholders)
-- Full app/ structure: core (config, database, security, dependencies, middleware,
-  exceptions), shared (base_model, base_schemas, enums, pagination, slug, storage),
-  15 feature packages (empty routers registered), utils (email, qr, scheduler)
-- Alembic configured (async env.py), initial empty migration applied (901799de6b0b)
-- tests/ with conftest (isolated eventpulse_test DB, async session + client fixtures)
-- pyproject.toml (ruff + pytest config), .dockerignore, GitHub Actions CI
-- Verified: /api/v1/health -> {"status":"ok","version":"1.0.0"}, /docs (200),
-  pytest (1 passed), ruff (clean)
-
-## Environment Notes
-- Runtime: everything runs in Docker (host Python is 3.14; container is 3.12-slim)
-- GitHub ops via gh CLI (no GitHub MCP available); authed as Santhosh0619
-- Migration strategy: incremental — each feature adds its own models + migration
-  (Phase 0 migration is intentionally empty)
-
 ## Completed Features
-(none yet — feature work begins in Phase 2)
+- **auth** (Phase 2) — register, login, refresh, verify-email, forgot/reset-password, logout.
+  Models: User, UserProfile. Migration 7b48f1058945. 27 tests. PR #1.
 
 ## Merged Branches
-(none yet — Phase 0 committed directly to main per setup instructions)
+- feature/auth -> main (PR #1, squash)
 
 ## Active Endpoints
-- GET /api/v1/health
+- GET  /api/v1/health
+- POST /api/v1/auth/register
+- POST /api/v1/auth/login
+- POST /api/v1/auth/refresh
+- POST /api/v1/auth/verify-email
+- POST /api/v1/auth/forgot-password
+- POST /api/v1/auth/reset-password
+- POST /api/v1/auth/logout
 
 ## Created Tables
-- alembic_version (migration tracking only; no domain tables yet)
+- users (Table 1)
+- user_profiles (Table 2)
+
+## Environment Notes
+- Everything runs in Docker (container python:3.12-slim). NO local venv.
+- Run: `docker compose run --rm api <cmd>` (pytest, alembic, ruff). API at localhost:8000.
+- gh CLI not on tool-shell PATH; prefix PowerShell with the registry PATH refresh.
+- Migrations are incremental (one per feature). bcrypt pinned 4.0.1 (passlib compat).
+- Autonomous build mode: no text permission questions; mobile hook gates tool calls.

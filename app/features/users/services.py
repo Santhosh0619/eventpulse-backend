@@ -80,3 +80,8 @@ async def upload_avatar(
 async def change_role(db: AsyncSession, user: User, role: str) -> User:
     """Change a user's platform role (consumed by admin flows in Phase 8)."""
     return await crud.update_role(db, user, role)
+
+
+async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
+    """Look up a user by email (cross-feature helper for invitations/admin)."""
+    return await crud.get_by_email(db, email)

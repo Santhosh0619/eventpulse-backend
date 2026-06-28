@@ -21,6 +21,7 @@ from app.features.media.router import router as media_router
 from app.features.notifications.router import router as notifications_router
 from app.features.orders.router import router as orders_router
 from app.features.organizations.router import router as orgs_router
+from app.features.organizations.router import user_orgs_router
 from app.features.payments.router import router as payments_router
 from app.features.recommendations.router import router as recommendations_router
 from app.features.reviews.router import router as reviews_router
@@ -75,6 +76,8 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(auth_router, prefix=f"{p}/auth", tags=["Auth"])
     app.include_router(users_router, prefix=f"{p}/users", tags=["Users"])
     app.include_router(orgs_router, prefix=f"{p}/organizations", tags=["Organizations"])
+    # Organization route that lives under the /users path.
+    app.include_router(user_orgs_router, prefix=f"{p}/users", tags=["Organizations"])
     app.include_router(categories_router, prefix=f"{p}/categories", tags=["Categories"])
     app.include_router(events_router, prefix=f"{p}/events", tags=["Events"])
     app.include_router(media_router, prefix=p, tags=["Media"])

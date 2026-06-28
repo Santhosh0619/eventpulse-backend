@@ -18,11 +18,14 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 from app.core.config import settings
 from app.core.database import Base
+from app.features.organizations.models import (  # noqa: F401
+    Organization,
+    OrganizationMember,
+)
 
 # --- Model import section (extended per phase) -------------------------------
 from app.features.users.models import User, UserProfile  # noqa: F401
 
-# from app.features.organizations.models import Organization, OrganizationMember
 # from app.features.categories.models import Category
 # from app.features.events.models import Event
 # from app.features.media.models import EventMedia

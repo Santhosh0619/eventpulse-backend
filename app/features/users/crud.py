@@ -17,6 +17,12 @@ async def get_user_with_profile(db: AsyncSession, user_id: uuid.UUID) -> User | 
     return result.scalar_one_or_none()
 
 
+async def get_by_email(db: AsyncSession, email: str) -> User | None:
+    """Return a user by email, or ``None``."""
+    result = await db.execute(select(User).where(User.email == email))
+    return result.scalar_one_or_none()
+
+
 async def update_profile(
     db: AsyncSession, profile: UserProfile, fields: dict
 ) -> UserProfile:

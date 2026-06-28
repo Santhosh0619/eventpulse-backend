@@ -67,6 +67,17 @@ async def _confirm_order_and_issue_tickets(db: AsyncSession, payment: Payment) -
         if buyer is not None:
             await attendees_services.generate_attendees_for_order(db, order, buyer)
 
+        from app.features.notifications import services as notifications_services
+
+        await notifications_services.send_notification(
+            db,
+            user_id=order.user_id,
+            type="order_confirmed",
+            title="Order confirmed",
+            message=f"Your order {order.order_number} has been confirmed.",
+            data={"order_id": str(order.id), "screen": "order_detail"},
+        )
+
 
 async def handle_webhook(
     db: AsyncSession, payload: bytes, sig_header: str | None

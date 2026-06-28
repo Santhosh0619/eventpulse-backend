@@ -22,6 +22,7 @@ from app.features.attendees.models import Attendee  # noqa: F401
 from app.features.categories.models import Category  # noqa: F401
 from app.features.events.models import Event  # noqa: F401
 from app.features.media.models import EventMedia  # noqa: F401
+from app.features.notifications.models import Notification  # noqa: F401
 from app.features.orders.models import Order, OrderItem  # noqa: F401
 from app.features.organizations.models import (  # noqa: F401
     Organization,

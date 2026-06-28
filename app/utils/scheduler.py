@@ -30,6 +30,19 @@ async def _cleanup_expired_orders_job() -> None:
         logger.exception("cleanup_expired_orders job failed")
 
 
+async def _event_reminders_job() -> None:
+    """Scheduler job: notify attendees of events starting within 24 hours."""
+    from app.features.notifications.services import dispatch_event_reminders
+
+    try:
+        async with async_session_factory() as session:
+            count = await dispatch_event_reminders(session)
+        if count:
+            logger.info("Sent %s event reminder(s)", count)
+    except Exception:  # noqa: BLE001 - background job must never crash the loop
+        logger.exception("event_reminders job failed")
+
+
 def register_jobs() -> None:
     """Register all recurring jobs on the scheduler."""
     scheduler.add_job(
@@ -37,6 +50,14 @@ def register_jobs() -> None:
         trigger="interval",
         seconds=60,
         id="cleanup_expired_orders",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _event_reminders_job,
+        trigger="cron",
+        hour=9,
+        minute=0,
+        id="event_reminders",
         replace_existing=True,
     )
 

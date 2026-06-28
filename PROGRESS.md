@@ -1,9 +1,29 @@
 # EventPulse Backend — Progress Tracker
 
 ## Current Status
-- Phase: 7 (Reviews & Notifications) — STARTING
-- Last completed: Phase 6 COMPLETE (attendees PR #9, payments PR #10)
-- Next step: `reviews` feature, then `notifications`
+- Phase: 7 (Reviews & Notifications) — IN PROGRESS
+- Last completed: `reviews` feature merged (PR #11). `notifications` feature CODE WRITTEN
+  on branch `feature/notifications` but NOT yet verified/reviewed/merged.
+- PAUSED here (WIP commit on feature/notifications).
+
+### Resume steps for `notifications` (next session)
+1. `git checkout feature/notifications`
+2. Run: `docker compose run --rm api sh -c "ruff format . && ruff check . && pytest tests/ -q"`
+   (notifications tests were written but NEVER RUN — expect possible fixes)
+3. Fix any failures, then run code+security review subagent, apply fixes
+4. Commit, push, open PR #12, review, squash-merge, sync main, update PROGRESS
+5. Then Phase 8 (analytics, recommendations, admin), Phase 9 (hardening), then web, then mobile
+
+### What the notifications feature already includes (written, unverified)
+- Notification model (Table 13, no updated_at) + migration 37ce071de6f6 (APPLIED to dev DB)
+- GET /notifications, GET /notifications/unread-count, PUT /notifications/{id}/read,
+  PUT /notifications/read-all
+- send_notification() with best-effort FCM (firebase, lazy/guarded) + email dispatch
+- PUT /users/me/fcm-token (deferred from Phase 2) added to users feature
+- Triggers wired: order_confirmed (payments webhook), review_reply (reviews respond)
+- dispatch_event_reminders() + daily 9AM cron job in utils/scheduler.py
+- tests/features/test_notifications.py written (endpoints, fcm, review_reply trigger, reminders)
+- main.py: notifications_router already registered from Phase 0; verify it imports cleanly
 
 ## Completed Phases
 - Phase 0 — Automation infrastructure + project foundation

@@ -108,11 +108,23 @@ async def respond_to_review(
     if role is None or role not in MEMBER_ROLES:
         raise ForbiddenError("Only organization members can respond to reviews")
 
-    return await crud.update_review(
+    updated = await crud.update_review(
         db,
         review,
         {"organizer_response": response, "responded_at": datetime.now(UTC)},
     )
+
+    from app.features.notifications import services as notifications_services
+
+    await notifications_services.send_notification(
+        db,
+        user_id=updated.user_id,
+        type="review_reply",
+        title="An organizer replied to your review",
+        message="The organizer responded to your review.",
+        data={"event_id": str(updated.event_id), "screen": "event_detail"},
+    )
+    return updated
 
 
 async def set_visibility(

@@ -12,6 +12,8 @@ from app.features.users import services
 from app.features.users.models import User
 from app.features.users.schemas import (
     AvatarUploadResponse,
+    FcmTokenRequest,
+    MessageResponse,
     ProfileUpdate,
     PublicUserRead,
     UserRead,
@@ -62,6 +64,19 @@ async def upload_avatar(
         filename=file.filename or "avatar",
     )
     return AvatarUploadResponse(avatar_url=url)
+
+
+@router.put(
+    "/me/fcm-token",
+    response_model=MessageResponse,
+    summary="Register FCM push token",
+)
+async def update_fcm_token(
+    payload: FcmTokenRequest, current_user: CurrentUser, db: DBSession
+) -> MessageResponse:
+    """Register the device's FCM token for push notifications."""
+    await services.update_fcm_token(db, current_user, payload.fcm_token)
+    return MessageResponse(message="FCM token updated")
 
 
 @router.get("/{user_id}", response_model=PublicUserRead, summary="Get a user")

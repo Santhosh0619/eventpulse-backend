@@ -27,6 +27,7 @@ from app.features.organizations.models import (  # noqa: F401
     Organization,
     OrganizationMember,
 )
+from app.features.payments.models import Payment  # noqa: F401
 from app.features.tickets.models import TicketType  # noqa: F401
 
 # --- Model import section (extended per phase) -------------------------------

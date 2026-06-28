@@ -30,12 +30,12 @@ async def generate_order_number(db: AsyncSession) -> str:
 
 
 async def place_order(db: AsyncSession, user: User, payload: dict) -> Order:
-    """Place an order: validate, atomically reserve inventory, and (mock) confirm.
+    """Place an order: validate, atomically reserve inventory, create as pending.
 
-    All steps run in a single transaction. Ticket inventory is reserved with
-    row locks so concurrent orders cannot oversell. Payment is mocked in Phase 5,
-    so the order is confirmed immediately; Phase 6 will gate confirmation on a
-    Stripe webhook.
+    All steps run in a single transaction. Ticket inventory is reserved with row
+    locks so concurrent orders cannot oversell. The order is created PENDING with
+    a 15-minute expiry; confirmation happens via the Stripe webhook once payment
+    succeeds (see payments.services).
     """
     event = await events_services.get_event(db, payload["event_id"])  # 404
     if event.status != EventStatus.PUBLISHED.value:
@@ -76,11 +76,13 @@ async def place_order(db: AsyncSession, user: User, payload: dict) -> Order:
         order_number=await generate_order_number(db),
         user_id=user.id,
         event_id=event.id,
-        status=OrderStatus.CONFIRMED.value,  # mock payment auto-confirms (Phase 5)
+        # Phase 6: orders are created PENDING with an expiry; confirmation happens
+        # via the Stripe webhook (payment_intent.succeeded).
+        status=OrderStatus.PENDING.value,
         total_amount=total,
         currency=currency or "INR",
         notes=payload.get("notes"),
-        confirmed_at=now,
+        expires_at=now + ORDER_EXPIRY,
         items=order_items,
     )
     db.add(order)

@@ -25,11 +25,12 @@ from app.features.organizations.models import (  # noqa: F401
     Organization,
     OrganizationMember,
 )
+from app.features.tickets.models import TicketType  # noqa: F401
 
 # --- Model import section (extended per phase) -------------------------------
 from app.features.users.models import User, UserProfile  # noqa: F401
 
-# from app.features.tickets.models import TicketType
+# from app.features.orders.models import Order, OrderItem
 # from app.features.tickets.models import TicketType
 # from app.features.orders.models import Order, OrderItem
 # from app.features.payments.models import Payment

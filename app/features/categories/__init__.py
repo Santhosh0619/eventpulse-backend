@@ -1,0 +1,1 @@
+"""Event category taxonomy feature."""

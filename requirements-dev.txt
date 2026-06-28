@@ -1,0 +1,7 @@
+pytest==8.*
+pytest-asyncio==0.24.*
+httpx==0.28.*
+factory-boy==3.3.*
+coverage==7.*
+locust==2.31.*
+ruff==0.8.*

@@ -1,33 +1,31 @@
 # EventPulse Backend — Progress Tracker
 
 ## Current Status
-- Phase: 2 (Authentication & User Management) — IN PROGRESS
-- Last completed: `auth` feature (PR #1 merged, squash af68c4b)
-- Next step: `users` feature (profile CRUD, avatar upload)
+- Phase: 3 (Organization Management) — STARTING
+- Last completed: Phase 2 COMPLETE (auth + users); PR #2 merged (151b82f)
+- Next step: `organizations` feature (orgs + members + invitations)
 
 ## Completed Phases
 - Phase 0 — Automation infrastructure + project foundation
+- Phase 2 — Authentication & User Management (auth, users)
 
 ## Completed Features
-- **auth** (Phase 2) — register, login, refresh, verify-email, forgot/reset-password, logout.
-  Models: User, UserProfile. Migration 7b48f1058945. 27 tests. PR #1.
+- **auth** (Phase 2) — register, login, refresh, verify-email, forgot/reset-password, logout. PR #1.
+- **users** (Phase 2) — GET/PUT /users/me, GET /users/{id}, PUT /users/me/avatar. PR #2.
 
 ## Merged Branches
-- feature/auth -> main (PR #1, squash)
+- feature/auth -> main (PR #1)
+- feature/users -> main (PR #2)
 
 ## Active Endpoints
 - GET  /api/v1/health
-- POST /api/v1/auth/register
-- POST /api/v1/auth/login
-- POST /api/v1/auth/refresh
-- POST /api/v1/auth/verify-email
-- POST /api/v1/auth/forgot-password
-- POST /api/v1/auth/reset-password
-- POST /api/v1/auth/logout
+- POST /api/v1/auth/{register,login,refresh,verify-email,forgot-password,reset-password,logout}
+- GET/PUT /api/v1/users/me
+- GET  /api/v1/users/{id}
+- PUT  /api/v1/users/me/avatar
 
 ## Created Tables
-- users (Table 1)
-- user_profiles (Table 2)
+- users (Table 1), user_profiles (Table 2)
 
 ## Environment Notes
 - Everything runs in Docker (container python:3.12-slim). NO local venv.
@@ -35,3 +33,4 @@
 - gh CLI not on tool-shell PATH; prefix PowerShell with the registry PATH refresh.
 - Migrations are incremental (one per feature). bcrypt pinned 4.0.1 (passlib compat).
 - Autonomous build mode: no text permission questions; mobile hook gates tool calls.
+- Deferred: PUT /users/me/fcm-token -> Phase 7.

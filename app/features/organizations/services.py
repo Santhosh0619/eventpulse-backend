@@ -43,6 +43,17 @@ async def _require_role(
     return membership
 
 
+async def get_user_org_role(
+    db: AsyncSession, org_id: uuid.UUID, user_id: uuid.UUID
+) -> str | None:
+    """Return the user's accepted role in an org, or ``None`` if not a member.
+
+    Cross-feature helper used by events/media/etc. to enforce org permissions.
+    """
+    membership = await crud.get_membership(db, org_id, user_id)
+    return membership.role if membership else None
+
+
 async def create_organization(
     db: AsyncSession, user: User, payload: dict
 ) -> Organization:

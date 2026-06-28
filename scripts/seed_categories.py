@@ -1,28 +1,20 @@
 """Seed the default set of event categories.
 
-Placeholder for Phase 0. The full seeding logic (10 default categories) and the
-``seed_default_categories()`` service are implemented in Phase 4.
+Run inside the api container:
+    docker compose run --rm api python -m scripts.seed_categories
 """
 
 import asyncio
 
-DEFAULT_CATEGORIES = [
-    "Conference",
-    "Workshop",
-    "Concert",
-    "Festival",
-    "Sports",
-    "Meetup",
-    "Exhibition",
-    "Webinar",
-    "Charity",
-    "Other",
-]
+from app.core.database import async_session_factory
+from app.features.categories.services import seed_default_categories
 
 
 async def main() -> None:
-    """Entry point for seeding categories. Implemented in Phase 4."""
-    raise NotImplementedError("Category seeding is implemented in Phase 4")
+    """Seed default categories and report how many were added."""
+    async with async_session_factory() as session:
+        added = await seed_default_categories(session)
+    print(f"Seeded {added} new categories.")
 
 
 if __name__ == "__main__":

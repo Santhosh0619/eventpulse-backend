@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Verify your email — EventPulse{% endblock %}
+{% block content %}
+<h2 style="margin-top: 0; color: #111827;">Confirm your email address</h2>
+<p style="color: #374151; line-height: 1.6;">
+  Welcome to EventPulse! Please confirm your email address to activate your
+  account and start discovering events.
+</p>
+<p style="text-align: center; margin: 32px 0;">
+  <a href="{{ verification_link }}"
+     style="background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; display: inline-block; font-weight: bold;">
+    Verify Email
+  </a>
+</p>
+<p style="color: #6b7280; font-size: 13px; line-height: 1.6;">
+  If the button doesn't work, copy and paste this link into your browser:<br />
+  <a href="{{ verification_link }}" style="color: #4f46e5;">{{ verification_link }}</a>
+</p>
+<p style="color: #6b7280; font-size: 13px;">
+  If you didn't create an EventPulse account, you can safely ignore this email.
+</p>
+{% endblock %}

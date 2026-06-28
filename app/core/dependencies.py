@@ -1,5 +1,6 @@
 """FastAPI dependencies: database session, current user, role enforcement."""
 
+import uuid
 from collections.abc import AsyncGenerator
 from typing import Annotated
 
@@ -50,11 +51,15 @@ async def get_current_user(
     user_id = payload.get("sub")
     if not user_id:
         raise UnauthorizedError("Invalid token payload")
+    try:
+        user_pk = uuid.UUID(user_id)
+    except (ValueError, TypeError) as exc:
+        raise UnauthorizedError("Invalid token payload") from exc
 
     # Imported lazily: the User model is introduced in Phase 2 (auth/users).
     from app.features.users.models import User
 
-    user = await db.get(User, user_id)
+    user = await db.get(User, user_pk)
     if user is None or not user.is_active:
         raise UnauthorizedError("User not found or inactive")
 

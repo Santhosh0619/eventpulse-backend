@@ -44,16 +44,30 @@ async def _ensure_test_database() -> None:
         await engine.dispose()
 
 
-@pytest_asyncio.fixture(scope="session")
+# Guard so the test database is created only once per test session.
+_db_initialized = False
+
+
+@pytest_asyncio.fixture
 async def test_engine():
-    """Session-scoped async engine bound to the test database with all tables."""
-    await _ensure_test_database()
-    engine = create_async_engine(TEST_DATABASE_URL, poolclass=None)
+    """Function-scoped async engine bound to the test database.
+
+    Function scope keeps the engine on the same event loop as the test that uses
+    it (pytest-asyncio runs each test in its own loop). The database and tables
+    are created once; per-test isolation comes from the savepoint rollback in
+    ``db_session``.
+    """
+    global _db_initialized
+    if not _db_initialized:
+        await _ensure_test_database()
+        _db_initialized = True
+
+    engine = create_async_engine(TEST_DATABASE_URL)
+    # ``create_all`` is idempotent (checkfirst=True), so this is cheap after the
+    # first test once the schema already exists.
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield engine
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
 
 
@@ -62,7 +76,14 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     """Function-scoped session wrapped in a transaction that is rolled back."""
     connection = await test_engine.connect()
     transaction = await connection.begin()
-    session_factory = async_sessionmaker(bind=connection, expire_on_commit=False)
+    # ``create_savepoint`` makes the session commit/rollback against a SAVEPOINT,
+    # so application-level commits never end the outer transaction. The outer
+    # rollback then discards everything, keeping each test fully isolated.
+    session_factory = async_sessionmaker(
+        bind=connection,
+        expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
+    )
     session = session_factory()
     try:
         yield session
@@ -84,3 +105,80 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_redis():
+    """Reset the module-level Redis client around each test.
+
+    The app caches a single Redis client, but pytest-asyncio gives every test its
+    own event loop, so a client created in one test is unusable in the next.
+    Resetting forces a fresh client bound to the current loop and closes it after.
+    """
+    import app.core.redis as redis_mod
+
+    redis_mod._redis = None
+    yield
+    if redis_mod._redis is not None:
+        await redis_mod._redis.aclose()
+        redis_mod._redis = None
+
+
+# ---------------------------------------------------------------------------
+# Data helpers / fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def make_user(db_session: AsyncSession):
+    """Return a factory coroutine that persists a ``User`` (+ profile) for tests."""
+    from app.core.security import hash_password
+    from app.features.users.models import User, UserProfile
+
+    _counter = {"n": 0}
+
+    async def _make(
+        *,
+        email: str | None = None,
+        password: str = "Password123!",
+        first_name: str = "Test",
+        last_name: str = "User",
+        role: str = "attendee",
+        is_verified: bool = True,
+        is_active: bool = True,
+    ) -> User:
+        _counter["n"] += 1
+        if email is None:
+            email = f"user{_counter['n']}@example.com"
+        user = User(
+            email=email,
+            password_hash=hash_password(password),
+            role=role,
+            is_verified=is_verified,
+            is_active=is_active,
+            profile=UserProfile(first_name=first_name, last_name=last_name),
+        )
+        db_session.add(user)
+        await db_session.commit()
+        await db_session.refresh(user)
+        return user
+
+    return _make
+
+
+@pytest_asyncio.fixture
+async def verified_user(make_user):
+    """A verified, active attendee user."""
+    return await make_user()
+
+
+@pytest_asyncio.fixture
+def auth_headers():
+    """Return a helper building an Authorization header for a given user."""
+    from app.core.security import create_access_token
+
+    def _headers(user) -> dict[str, str]:
+        token = create_access_token(str(user.id), extra_claims={"role": user.role})
+        return {"Authorization": f"Bearer {token}"}
+
+    return _headers

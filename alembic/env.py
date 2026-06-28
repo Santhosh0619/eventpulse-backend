@@ -20,7 +20,8 @@ from app.core.config import settings
 from app.core.database import Base
 
 # --- Model import section (extended per phase) -------------------------------
-# from app.features.users.models import User, UserProfile
+from app.features.users.models import User, UserProfile  # noqa: F401
+
 # from app.features.organizations.models import Organization, OrganizationMember
 # from app.features.categories.models import Category
 # from app.features.events.models import Event

@@ -25,6 +25,20 @@ async def ticket_code_exists(db: AsyncSession, code: str) -> bool:
     return result.first() is not None
 
 
+async def has_checked_in(
+    db: AsyncSession, event_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    """Return ``True`` if the user has a checked-in attendee for the event."""
+    result = await db.execute(
+        select(Attendee.id).where(
+            Attendee.event_id == event_id,
+            Attendee.user_id == user_id,
+            Attendee.check_in_status == "checked_in",
+        )
+    )
+    return result.first() is not None
+
+
 async def list_for_event(db: AsyncSession, event_id: uuid.UUID) -> list[Attendee]:
     """Return all attendees for an event, ordered by creation time."""
     result = await db.execute(

@@ -90,6 +90,16 @@ async def check_in(db: AsyncSession, ticket_code: str, staff: User):
     return attendee, False
 
 
+async def has_checked_in_attendee(
+    db: AsyncSession, event_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    """Return whether a user has a checked-in attendee for the event.
+
+    Cross-feature helper used by reviews to verify attendance.
+    """
+    return await crud.has_checked_in(db, event_id, user_id)
+
+
 async def list_attendees(
     db: AsyncSession, event_id: uuid.UUID, user: User
 ) -> list[Attendee]:

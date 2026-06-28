@@ -31,6 +31,11 @@ async def list_categories(
     return await crud.list_categories(db, is_active=is_active)
 
 
+async def get_category(db: AsyncSession, category_id: uuid.UUID) -> Category | None:
+    """Return a category by id (cross-feature helper for FK validation)."""
+    return await crud.get_category(db, category_id)
+
+
 async def create_category(db: AsyncSession, payload: dict) -> Category:
     """Create a category, generating a unique slug from its name.
 

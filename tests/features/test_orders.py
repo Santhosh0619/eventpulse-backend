@@ -82,12 +82,14 @@ async def test_place_order_success(
     )
     assert resp.status_code == 201
     body = resp.json()
-    assert body["status"] == "confirmed"
+    # Phase 6: orders start pending and are confirmed via the Stripe webhook.
+    assert body["status"] == "pending"
+    assert body["expires_at"] is not None
     assert body["order_number"].startswith("EP-")
     assert body["total_amount"] == "50.00"
     assert body["items"][0]["quantity"] == 2
 
-    # Inventory decremented.
+    # Inventory is reserved at placement (held for the pending order).
     avail = await client.get(f"{EVENTS_URL}/{event_id}/availability")
     assert avail.json()["tiers"][0]["quantity_sold"] == 2
 

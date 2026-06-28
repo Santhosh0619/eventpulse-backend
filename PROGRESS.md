@@ -1,21 +1,24 @@
 # EventPulse Backend — Progress Tracker
 
 ## Current Status
-- Phase: 3 (Organization Management) — STARTING
-- Last completed: Phase 2 COMPLETE (auth + users); PR #2 merged (151b82f)
-- Next step: `organizations` feature (orgs + members + invitations)
+- Phase: 4 (Event Management & Categories) — STARTING
+- Last completed: Phase 3 COMPLETE (organizations); PR #3 merged (bd2115e)
+- Next step: `categories` feature, then `events`, then `media`
 
 ## Completed Phases
 - Phase 0 — Automation infrastructure + project foundation
 - Phase 2 — Authentication & User Management (auth, users)
+- Phase 3 — Organization Management (organizations)
 
 ## Completed Features
-- **auth** (Phase 2) — register, login, refresh, verify-email, forgot/reset-password, logout. PR #1.
-- **users** (Phase 2) — GET/PUT /users/me, GET /users/{id}, PUT /users/me/avatar. PR #2.
+- **auth** (Phase 2) — PR #1.
+- **users** (Phase 2) — PR #2.
+- **organizations** (Phase 3) — org CRUD, members, invitations. PR #3.
 
 ## Merged Branches
 - feature/auth -> main (PR #1)
 - feature/users -> main (PR #2)
+- feature/organizations -> main (PR #3)
 
 ## Active Endpoints
 - GET  /api/v1/health

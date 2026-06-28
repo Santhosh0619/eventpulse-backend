@@ -1,24 +1,34 @@
 # EventPulse Backend — Progress Tracker
 
 ## Current Status
-- Phase: 4 (Event Management & Categories) — STARTING
-- Last completed: Phase 3 COMPLETE (organizations); PR #3 merged (bd2115e)
-- Next step: `categories` feature, then `events`, then `media`
+- Phase: 5 (Ticketing & Orders) — STARTING
+- Last completed: Phase 4 COMPLETE (categories, events, media); PR #6 merged (2f2014b)
+- Next step: `tickets` feature, then `orders`
 
 ## Completed Phases
 - Phase 0 — Automation infrastructure + project foundation
 - Phase 2 — Authentication & User Management (auth, users)
 - Phase 3 — Organization Management (organizations)
+- Phase 4 — Event Management & Categories (categories, events, media)
 
 ## Completed Features
 - **auth** (Phase 2) — PR #1.
 - **users** (Phase 2) — PR #2.
-- **organizations** (Phase 3) — org CRUD, members, invitations. PR #3.
+- **organizations** (Phase 3) — PR #3.
+- **categories** (Phase 4) — admin CRUD + seeding. PR #4.
+- **events** (Phase 4) — lifecycle, search, publish/cancel. PR #5.
+- **media** (Phase 4) — upload/list/delete/reorder. PR #6.
 
 ## Merged Branches
-- feature/auth -> main (PR #1)
-- feature/users -> main (PR #2)
-- feature/organizations -> main (PR #3)
+- feature/auth (#1), feature/users (#2), feature/organizations (#3),
+  feature/categories (#4), feature/events (#5), feature/media (#6)
+
+## Created Tables (8 of 15)
+- users, user_profiles, organizations, organization_members,
+  categories, events, event_media (+ alembic_version)
+
+## Reminder
+- ALWAYS `git checkout -b feature/<name>` BEFORE writing code (caught a slip on events).
 
 ## Active Endpoints
 - GET  /api/v1/health

@@ -98,8 +98,7 @@ async def delete_event(db: AsyncSession, event_id: uuid.UUID, user: User) -> Non
 async def publish_event(db: AsyncSession, event_id: uuid.UUID, user: User) -> Event:
     """Publish an event after validating required fields (org admin or owner).
 
-    Per Phase 4, ticket types are NOT required to publish (that check is added in
-    Phase 5).
+    Requires complete event details and at least one active ticket type.
     """
     event = await _require_event(db, event_id)
     await _require_org_role(db, event.organization_id, user, ADMIN_ROLES)
@@ -117,6 +116,12 @@ async def publish_event(db: AsyncSession, event_id: uuid.UUID, user: User) -> Ev
         raise BadRequestError(
             f"Cannot publish: missing required fields: {', '.join(missing)}"
         )
+
+    # Phase 5 requirement: an event must have at least one active ticket type.
+    from app.features.tickets import services as tickets_services
+
+    if not await tickets_services.has_active_ticket_type(db, event.id):
+        raise BadRequestError("Cannot publish: the event has no active ticket types")
 
     return await crud.update_status(db, event, EventStatus.PUBLISHED.value)
 

@@ -56,6 +56,15 @@ async def _add_member(client, owner_headers, org_id, member, member_headers, rol
     await client.post(f"{ORGS_URL}/invitations/{token}/accept", headers=member_headers)
 
 
+async def _add_ticket_type(client: AsyncClient, headers: dict, event_id: str):
+    """Add an active ticket type so the event can be published (Phase 5 rule)."""
+    return await client.post(
+        f"{EVENTS_URL}/{event_id}/ticket-types",
+        headers=headers,
+        json={"name": "General", "price": "10.00", "quantity_total": 100},
+    )
+
+
 # --------------------------------------------------------------------------- #
 # create
 # --------------------------------------------------------------------------- #
@@ -154,6 +163,7 @@ async def test_search_returns_only_published_by_default(
     published = (
         await _create_event(client, headers, org_id, title="Published One")
     ).json()
+    await _add_ticket_type(client, headers, published["id"])
     await client.post(f"{EVENTS_URL}/{published['id']}/publish", headers=headers)
 
     resp = await client.get(EVENTS_URL)
@@ -172,6 +182,7 @@ async def test_search_filter_by_tag(
     headers = auth_headers(verified_user)
     org_id = await _create_org(client, headers)
     ev = (await _create_event(client, headers, org_id, tags=["python", "web"])).json()
+    await _add_ticket_type(client, headers, ev["id"])
     await client.post(f"{EVENTS_URL}/{ev['id']}/publish", headers=headers)
     resp = await client.get(EVENTS_URL, params={"tags": "python"})
     assert resp.status_code == 200
@@ -247,6 +258,7 @@ async def test_publish_event_success(
     headers = auth_headers(verified_user)
     org_id = await _create_org(client, headers)
     event = (await _create_event(client, headers, org_id)).json()
+    await _add_ticket_type(client, headers, event["id"])
     resp = await client.post(f"{EVENTS_URL}/{event['id']}/publish", headers=headers)
     assert resp.status_code == 200
     assert resp.json()["status"] == "published"

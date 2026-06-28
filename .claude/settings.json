@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'FILE=$(echo \"$(cat)\" | jq -r \".tool_input.file_path // .tool_input.path // empty\"); if [ -n \"$FILE\" ] && [[ \"$FILE\" == *.py ]] && command -v ruff &>/dev/null; then ruff format \"$FILE\" 2>/dev/null; ruff check --fix \"$FILE\" 2>/dev/null; fi; exit 0'",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'CMD=$(echo \"$(cat)\" | jq -r \".tool_input.command // empty\"); BLOCKED_PATTERNS=\"rm -rf /|rm -rf \\\\\\\\|drop database|DROP DATABASE|DROP TABLE|format c:|del /f /s /q|rmdir /s /q C:\"; if echo \"$CMD\" | grep -qiE \"$BLOCKED_PATTERNS\"; then echo \"BLOCKED: Dangerous command detected: $CMD\" >&2; exit 2; fi; exit 0'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -d \"EventPulse: Claude finished current task. Check terminal.\" ntfy.sh/eventpulse-claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

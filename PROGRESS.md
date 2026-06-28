@@ -1,31 +1,33 @@
 # EventPulse Backend — Progress Tracker
 
 ## Current Status
-- Phase: 5 (Ticketing & Orders) — STARTING
-- Last completed: Phase 4 COMPLETE (categories, events, media); PR #6 merged (2f2014b)
-- Next step: `tickets` feature, then `orders`
+- Phase: 6 (Payments & Attendees) — STARTING
+- Last completed: Phase 5 COMPLETE (tickets, orders); PR #8 merged (4d729a1)
+- Next step: `payments` feature (Stripe), then `attendees` (QR check-in)
 
 ## Completed Phases
 - Phase 0 — Automation infrastructure + project foundation
 - Phase 2 — Authentication & User Management (auth, users)
 - Phase 3 — Organization Management (organizations)
 - Phase 4 — Event Management & Categories (categories, events, media)
+- Phase 5 — Ticketing & Orders (tickets, orders) — concurrency-safe, APScheduler expiry
 
 ## Completed Features
-- **auth** (Phase 2) — PR #1.
-- **users** (Phase 2) — PR #2.
-- **organizations** (Phase 3) — PR #3.
-- **categories** (Phase 4) — admin CRUD + seeding. PR #4.
-- **events** (Phase 4) — lifecycle, search, publish/cancel. PR #5.
-- **media** (Phase 4) — upload/list/delete/reorder. PR #6.
+- **auth** (Phase 2, PR #1), **users** (Phase 2, PR #2)
+- **organizations** (Phase 3, PR #3)
+- **categories** (PR #4), **events** (PR #5), **media** (PR #6) — Phase 4
+- **tickets** (PR #7) — tiers, availability, atomic reserve/release
+- **orders** (PR #8) — pipeline, mock confirm, cancel, expiry scheduler, concurrency test
 
 ## Merged Branches
-- feature/auth (#1), feature/users (#2), feature/organizations (#3),
-  feature/categories (#4), feature/events (#5), feature/media (#6)
+- #1 auth, #2 users, #3 organizations, #4 categories, #5 events, #6 media,
+  #7 tickets, #8 orders
 
-## Created Tables (8 of 15)
-- users, user_profiles, organizations, organization_members,
-  categories, events, event_media (+ alembic_version)
+## Created Tables (11 of 15)
+- users, user_profiles, organizations, organization_members, categories, events,
+  event_media, ticket_types, orders, order_items (+ alembic_version)
+- Remaining: payments, attendees (Phase 6), reviews, notifications (Phase 7),
+  audit_logs (Phase 8)
 
 ## Reminder
 - ALWAYS `git checkout -b feature/<name>` BEFORE writing code (caught a slip on events).

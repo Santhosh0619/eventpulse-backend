@@ -1,17 +1,50 @@
-"""APScheduler job definitions.
+"""APScheduler job definitions and registration.
 
-Placeholder for Phase 0. Jobs (order expiry in Phase 5, event reminders in
-Phase 7) are registered against this scheduler and started from the app lifespan.
+Jobs run against their own database session (independent of request sessions).
+Registered jobs:
+- ``cleanup_expired_orders`` every 60 seconds (Phase 5).
+Event reminders (Phase 7) are added later.
 """
 
+import logging
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+from app.core.database import async_session_factory
+
+logger = logging.getLogger("eventpulse.scheduler")
 
 scheduler = AsyncIOScheduler()
 
 
+async def _cleanup_expired_orders_job() -> None:
+    """Scheduler job: cancel expired pending orders and release inventory."""
+    from app.features.orders.services import cleanup_expired_orders
+
+    try:
+        async with async_session_factory() as session:
+            count = await cleanup_expired_orders(session)
+        if count:
+            logger.info("Expired %s pending order(s)", count)
+    except Exception:  # noqa: BLE001 - background job must never crash the loop
+        logger.exception("cleanup_expired_orders job failed")
+
+
+def register_jobs() -> None:
+    """Register all recurring jobs on the scheduler."""
+    scheduler.add_job(
+        _cleanup_expired_orders_job,
+        trigger="interval",
+        seconds=60,
+        id="cleanup_expired_orders",
+        replace_existing=True,
+    )
+
+
 def start_scheduler() -> None:
-    """Start the background scheduler if it is not already running."""
+    """Register jobs and start the background scheduler."""
     if not scheduler.running:
+        register_jobs()
         scheduler.start()
 
 

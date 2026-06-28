@@ -20,6 +20,7 @@ from app.features.events.router import router as events_router
 from app.features.media.router import router as media_router
 from app.features.notifications.router import router as notifications_router
 from app.features.orders.router import router as orders_router
+from app.features.orders.router import user_orders_router
 from app.features.organizations.router import router as orgs_router
 from app.features.organizations.router import user_orgs_router
 from app.features.payments.router import router as payments_router
@@ -31,13 +32,15 @@ from app.features.users.router import router as users_router
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Application lifespan: startup and shutdown hooks.
-
-    Background scheduler jobs are registered in later phases; for now the
-    lifespan simply ensures the upload directory tree exists.
-    """
+    """Application lifespan: ensure upload dirs and run the background scheduler."""
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    yield
+    from app.utils.scheduler import shutdown_scheduler, start_scheduler
+
+    start_scheduler()
+    try:
+        yield
+    finally:
+        shutdown_scheduler()
 
 
 def create_app() -> FastAPI:
@@ -83,6 +86,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(media_router, prefix=p, tags=["Media"])
     app.include_router(tickets_router, prefix=p, tags=["Tickets"])
     app.include_router(orders_router, prefix=p, tags=["Orders"])
+    app.include_router(user_orders_router, prefix=f"{p}/users", tags=["Orders"])
     app.include_router(payments_router, prefix=p, tags=["Payments"])
     app.include_router(attendees_router, prefix=p, tags=["Attendees"])
     app.include_router(reviews_router, prefix=p, tags=["Reviews"])

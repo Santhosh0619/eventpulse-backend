@@ -29,11 +29,18 @@ async def get_event_by_slug(db: AsyncSession, slug: str) -> Event | None:
     return result.scalar_one_or_none()
 
 
-async def create_event(db: AsyncSession, **fields) -> Event:
-    """Create and persist an event."""
+async def create_event(db: AsyncSession, *, commit: bool = True, **fields) -> Event:
+    """Create and persist an event.
+
+    With ``commit=False`` the row is only flushed so the caller can commit it
+    atomically alongside related writes (e.g. an audit log entry).
+    """
     event = Event(**fields)
     db.add(event)
-    await db.commit()
+    if commit:
+        await db.commit()
+    else:
+        await db.flush()
     await db.refresh(event)
     return event
 

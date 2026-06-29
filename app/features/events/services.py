@@ -10,7 +10,7 @@ from app.features.events import crud
 from app.features.events.models import Event
 from app.features.organizations import services as orgs_services
 from app.features.users.models import User
-from app.shared.enums import EventStatus, OrgMemberRole
+from app.shared.enums import AuditAction, EventStatus, OrgMemberRole
 from app.shared.slug import generate_unique_slug
 
 MEMBER_ROLES = (
@@ -57,9 +57,24 @@ async def create_event(db: AsyncSession, user: User, payload: dict) -> Event:
     slug = await generate_unique_slug(
         payload["title"], lambda candidate: crud.slug_exists(db, candidate)
     )
-    return await crud.create_event(
-        db, slug=slug, status=EventStatus.DRAFT.value, **payload
+    event = await crud.create_event(
+        db, slug=slug, status=EventStatus.DRAFT.value, commit=False, **payload
     )
+
+    from app.features.admin import services as admin_services
+
+    await admin_services.log_action(
+        db,
+        action=AuditAction.EVENT_CREATED.value,
+        entity_type="event",
+        entity_id=event.id,
+        user_id=user.id,
+        new_values={"title": event.title, "status": event.status},
+        commit=False,
+    )
+    await db.commit()
+    await db.refresh(event)
+    return event
 
 
 async def get_event(db: AsyncSession, event_id: uuid.UUID) -> Event:
@@ -123,6 +138,11 @@ async def publish_event(db: AsyncSession, event_id: uuid.UUID, user: User) -> Ev
     if not await tickets_services.has_active_ticket_type(db, event.id):
         raise BadRequestError("Cannot publish: the event has no active ticket types")
 
+    # Log first (commit=False) so the audit row and the status change commit
+    # together in crud.update_status's single transaction.
+    await _log_status_change(
+        db, event, user, AuditAction.EVENT_PUBLISHED.value, EventStatus.PUBLISHED.value
+    )
     return await crud.update_status(db, event, EventStatus.PUBLISHED.value)
 
 
@@ -130,7 +150,27 @@ async def cancel_event(db: AsyncSession, event_id: uuid.UUID, user: User) -> Eve
     """Cancel an event (requires org admin or owner)."""
     event = await _require_event(db, event_id)
     await _require_org_role(db, event.organization_id, user, ADMIN_ROLES)
+    await _log_status_change(
+        db, event, user, AuditAction.EVENT_CANCELLED.value, EventStatus.CANCELLED.value
+    )
     return await crud.update_status(db, event, EventStatus.CANCELLED.value)
+
+
+async def _log_status_change(
+    db: AsyncSession, event: Event, user: User, action: str, new_status: str
+) -> None:
+    """Record an event lifecycle transition (flushed; caller's commit persists it)."""
+    from app.features.admin import services as admin_services
+
+    await admin_services.log_action(
+        db,
+        action=action,
+        entity_type="event",
+        entity_id=event.id,
+        user_id=user.id,
+        new_values={"status": new_status},
+        commit=False,
+    )
 
 
 async def search_events(db: AsyncSession, *, page: int, limit: int, **filters):

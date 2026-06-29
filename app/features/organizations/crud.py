@@ -22,9 +22,13 @@ async def get_org(db: AsyncSession, org_id: uuid.UUID) -> Organization | None:
 
 
 async def create_org_with_owner(
-    db: AsyncSession, *, fields: dict, owner_id: uuid.UUID
+    db: AsyncSession, *, fields: dict, owner_id: uuid.UUID, commit: bool = True
 ) -> Organization:
-    """Create an organization and its owner membership in one transaction."""
+    """Create an organization and its owner membership in one transaction.
+
+    With ``commit=False`` the rows are only flushed so the caller can commit
+    them atomically alongside related writes (e.g. an audit log entry).
+    """
     org = Organization(**fields)
     org.members = [
         OrganizationMember(
@@ -35,7 +39,10 @@ async def create_org_with_owner(
         )
     ]
     db.add(org)
-    await db.commit()
+    if commit:
+        await db.commit()
+    else:
+        await db.flush()
     await db.refresh(org)
     return org
 

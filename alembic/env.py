@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 from app.core.config import settings
 from app.core.database import Base
+from app.features.admin.models import AuditLog  # noqa: F401
 from app.features.attendees.models import Attendee  # noqa: F401
 from app.features.categories.models import Category  # noqa: F401
 from app.features.events.models import Event  # noqa: F401

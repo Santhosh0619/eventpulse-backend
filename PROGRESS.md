@@ -2,11 +2,12 @@
 
 ## Current Status
 - Phase: 9 (Performance, Security & Production) — IN PROGRESS
-- Done this phase: Redis caching (PR #16); rate-limiting via slowapi (PR pending) —
-  default 100/min per identity (token-hash or IP), 5/min auth endpoints, 50/min webhook;
-  limiter gated off in tests via conftest. DB pool already 20/10 in config.
-- Phase 9 remaining: DB optimization (N+1/selectinload) + health-check DB ping,
-  security hardening (headers/CORS/body limits/account lockout), Locust load test, OpenAPI check.
+- Done this phase: Redis caching (PR #16); rate-limiting (PR #17); db-health (PR pending) —
+  /health/ready probe pinging Postgres+Redis (200/503), N+1 audit found no active issues
+  (orders use lazy=selectin, users eager-load profile, other lists are scalar-FK-only),
+  DB pool already 20/10.
+- Phase 9 remaining: security hardening (headers/CORS/body limits/account lockout),
+  Locust load test, OpenAPI check.
 - NOTE: anon-tier 20/min folded into 100/min default (slowapi default_limits can't vary
   per-request auth state cleanly); documented deviation.
 

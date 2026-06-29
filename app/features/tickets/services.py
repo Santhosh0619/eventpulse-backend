@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import cache
 from app.core.exceptions import (
     BadRequestError,
     ConflictError,
@@ -58,12 +59,19 @@ async def list_tiers(db: AsyncSession, event_id: uuid.UUID) -> list[TicketType]:
     return await crud.list_for_event(db, event_id)
 
 
+def _availability_key(event_id: uuid.UUID) -> str:
+    """Cache key for an event's ticket availability."""
+    return f"{cache.AVAILABILITY_PREFIX}{event_id}"
+
+
 async def create_tier(
     db: AsyncSession, event_id: uuid.UUID, user: User, payload: dict
 ) -> TicketType:
     """Create a ticket tier for an event (org admin or owner)."""
     await _require_event_admin(db, event_id, user)
-    return await crud.create_ticket_type(db, event_id=event_id, **payload)
+    tier = await crud.create_ticket_type(db, event_id=event_id, **payload)
+    await cache.delete(_availability_key(event_id))
+    return tier
 
 
 async def update_tier(
@@ -82,6 +90,7 @@ async def update_tier(
         )
     if fields:
         await crud.update_ticket_type(db, tier, fields)
+        await cache.delete(_availability_key(event_id))
     return tier
 
 
@@ -94,13 +103,20 @@ async def delete_tier(
     if tier.quantity_sold > 0:
         raise ConflictError("Cannot delete a ticket type that has sales")
     await crud.delete_ticket_type(db, tier)
+    await cache.delete(_availability_key(event_id))
 
 
 async def get_availability(
     db: AsyncSession, event_id: uuid.UUID
 ) -> AvailabilityResponse:
-    """Return availability across an event's ticket tiers (public)."""
-    await events_services.get_event(db, event_id)
+    """Return availability across an event's ticket tiers (public, cached 30s)."""
+    await events_services.get_event(db, event_id)  # preserve 404
+
+    key = _availability_key(event_id)
+    cached = await cache.get_json(key)
+    if cached is not None:
+        return AvailabilityResponse(**cached)
+
     tiers = await crud.list_for_event(db, event_id)
     now = datetime.now(UTC)
     tier_rows = [
@@ -117,9 +133,11 @@ async def get_availability(
         for t in tiers
     ]
     total_available = sum(r.quantity_available for r in tier_rows if r.is_on_sale)
-    return AvailabilityResponse(
+    response = AvailabilityResponse(
         event_id=event_id, total_available=total_available, tiers=tier_rows
     )
+    await cache.set_json(key, response.model_dump(mode="json"), cache.TTL_AVAILABILITY)
+    return response
 
 
 async def has_active_ticket_type(db: AsyncSession, event_id: uuid.UUID) -> bool:

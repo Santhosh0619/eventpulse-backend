@@ -9,6 +9,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import cache
 from app.core.exceptions import BadRequestError, NotFoundError
 from app.features.admin import crud
 from app.features.admin.models import AuditLog
@@ -191,4 +192,6 @@ async def feature_event(
     )
     await db.commit()
     await db.refresh(event)
+    # Featuring changes discovery listings (is_featured filter / featured feed).
+    await cache.invalidate_prefix(cache.EVENT_LIST_PREFIX)
     return event

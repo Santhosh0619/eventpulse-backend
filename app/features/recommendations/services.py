@@ -10,6 +10,7 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import cache
 from app.features.events import services as events_services
 from app.features.events.models import Event
 from app.features.recommendations import crud
@@ -101,12 +102,22 @@ async def _rank(
     ]
 
 
+def _cached_recs(cached: list) -> list[RecommendedEvent]:
+    """Reconstruct recommendation models from a cached JSON list."""
+    return [RecommendedEvent.model_validate(item) for item in cached]
+
+
 async def get_personalized_recommendations(
     db: AsyncSession, user: User, limit: int = 10
 ) -> list[RecommendedEvent]:
-    """Recommend upcoming events for a user based on their attendance history."""
+    """Recommend upcoming events for a user based on history (cached 1h per user)."""
+    key = f"{cache.RECOMMENDATIONS_PREFIX}user:{user.id}:{limit}"
+    cached = await cache.get_json(key)
+    if cached is not None:
+        return _cached_recs(cached)
+
     attended = await crud.user_attended_event_ids(db, user.id)
-    return await _rank(
+    recs = await _rank(
         db,
         exclude_ids=attended,
         pref_categories=await crud.user_pref_categories(db, user.id),
@@ -114,17 +125,27 @@ async def get_personalized_recommendations(
         pref_price=await crud.user_avg_price(db, user.id),
         limit=limit,
     )
+    await cache.set_json(
+        key, [r.model_dump(mode="json") for r in recs], cache.TTL_RECOMMENDATIONS
+    )
+    return recs
 
 
 async def get_similar_events(
     db: AsyncSession, event_id: uuid.UUID, limit: int = 10
 ) -> list[RecommendedEvent]:
-    """Recommend events similar to a given event (public; no user context)."""
+    """Recommend events similar to a given event (public; cached 1h per event)."""
     source = await events_services.get_event(db, event_id)  # 404 if missing
+
+    key = f"{cache.RECOMMENDATIONS_PREFIX}similar:{event_id}:{limit}"
+    cached = await cache.get_json(key)
+    if cached is not None:
+        return _cached_recs(cached)
+
     pref_categories = {source.category_id} if source.category_id else set()
     pref_cities = {source.city} if source.city else set()
     pref_price = await crud.event_min_price(db, event_id)
-    return await _rank(
+    recs = await _rank(
         db,
         exclude_ids={event_id},
         pref_categories=pref_categories,
@@ -132,3 +153,7 @@ async def get_similar_events(
         pref_price=pref_price,
         limit=limit,
     )
+    await cache.set_json(
+        key, [r.model_dump(mode="json") for r in recs], cache.TTL_RECOMMENDATIONS
+    )
+    return recs

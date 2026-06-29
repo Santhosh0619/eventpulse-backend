@@ -1,10 +1,13 @@
 # EventPulse Backend — Progress Tracker
 
 ## Current Status
-- Phase: 7 (Reviews & Notifications) — COMPLETE (pending PR #12 merge)
-- Last completed: `notifications` feature verified, reviewed, and ready to merge (PR #12).
-- Next: Phase 8 (analytics, recommendations, admin = audit_logs table), then Phase 9
-  (caching/rate-limiting/security hardening), then web repo, then mobile repo.
+- Phase: 8 (Analytics, Recommendations & Admin) — IN PROGRESS
+- Done this phase: `analytics` feature (PR pending) — event sales, event attendance,
+  org overview, platform dashboard; read-only aggregate SQL, no model/migration.
+- Next in Phase 8: `recommendations` feature, then `admin` feature (audit_logs = Table 15,
+  admin CRUD, log_action() wired into existing mutations).
+- Then Phase 9 (caching/rate-limiting/security hardening), then web repo, then mobile repo.
+- DEFERRED to Phase 9: API rate limiting (no limiter exists anywhere yet).
 
 ### notifications feature (DONE)
 - Notification model (Table 13, no updated_at) + migration 37ce071de6f6 (APPLIED to dev DB)

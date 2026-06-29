@@ -70,3 +70,17 @@ class AvatarUploadResponse(BaseModel):
     """Response returned after a successful avatar upload."""
 
     avatar_url: str
+
+
+class FcmTokenRequest(BaseModel):
+    """Payload for registering a device's FCM push token."""
+
+    # FCM registration tokens are opaque and contain no whitespace; reject
+    # malformed values rather than storing garbage that can never deliver.
+    fcm_token: str = Field(..., min_length=1, max_length=500, pattern=r"^\S+$")
+
+
+class MessageResponse(BaseModel):
+    """Generic success message."""
+
+    message: str

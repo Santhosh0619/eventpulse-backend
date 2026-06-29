@@ -85,3 +85,11 @@ async def change_role(db: AsyncSession, user: User, role: str) -> User:
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
     """Look up a user by email (cross-feature helper for invitations/admin)."""
     return await crud.get_by_email(db, email)
+
+
+async def update_fcm_token(db: AsyncSession, user: User, fcm_token: str) -> None:
+    """Store the FCM device token on the user's profile (for push notifications)."""
+    full = await crud.get_user_with_profile(db, user.id)
+    if full is None or full.profile is None:
+        raise NotFoundError("Profile not found")
+    await crud.set_fcm_token(db, full.profile, fcm_token)

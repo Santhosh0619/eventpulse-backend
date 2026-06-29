@@ -127,6 +127,20 @@ async def _reset_redis():
         redis_mod._redis = None
 
 
+@pytest_asyncio.fixture(autouse=True)
+def _disable_rate_limit():
+    """Disable rate limiting for the general suite.
+
+    Most tests fire many requests from one client (a single IP/identity) and would
+    otherwise trip the limiter. The dedicated rate-limit test re-enables it.
+    """
+    from app.core.rate_limit import limiter
+
+    limiter.enabled = False
+    yield
+    limiter.enabled = True
+
+
 # ---------------------------------------------------------------------------
 # Data helpers / fixtures
 # ---------------------------------------------------------------------------

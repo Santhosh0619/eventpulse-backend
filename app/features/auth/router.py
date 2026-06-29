@@ -2,9 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 
+from app.core.config import settings
 from app.core.dependencies import DBSession, get_current_user
+from app.core.rate_limit import limiter
 from app.features.auth import services
 from app.features.auth.schemas import (
     ForgotPasswordRequest,
@@ -29,7 +31,8 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     summary="Register a new account",
 )
-async def register(payload: RegisterRequest, db: DBSession) -> User:
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+async def register(request: Request, payload: RegisterRequest, db: DBSession) -> User:
     """Create a new unverified account and email a verification link."""
     return await services.register(
         db,
@@ -41,7 +44,10 @@ async def register(payload: RegisterRequest, db: DBSession) -> User:
 
 
 @router.post("/login", response_model=TokenResponse, summary="Log in")
-async def login(payload: LoginRequest, db: DBSession) -> TokenResponse:
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+async def login(
+    request: Request, payload: LoginRequest, db: DBSession
+) -> TokenResponse:
     """Authenticate with email and password, returning a token pair."""
     return await services.login(db, email=payload.email, password=payload.password)
 
@@ -66,8 +72,9 @@ async def verify_email(payload: VerifyEmailRequest, db: DBSession) -> MessageRes
     response_model=MessageResponse,
     summary="Request a password reset",
 )
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def forgot_password(
-    payload: ForgotPasswordRequest, db: DBSession
+    request: Request, payload: ForgotPasswordRequest, db: DBSession
 ) -> MessageResponse:
     """Email a password-reset link if the account exists (always succeeds)."""
     await services.forgot_password(db, email=payload.email)
@@ -79,8 +86,9 @@ async def forgot_password(
 @router.post(
     "/reset-password", response_model=MessageResponse, summary="Reset password"
 )
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def reset_password(
-    payload: ResetPasswordRequest, db: DBSession
+    request: Request, payload: ResetPasswordRequest, db: DBSession
 ) -> MessageResponse:
     """Set a new password using a valid, unexpired reset token."""
     await services.reset_password(

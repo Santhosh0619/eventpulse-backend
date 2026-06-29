@@ -12,7 +12,13 @@ from app.core.exceptions import (
     ForbiddenError,
     UnauthorizedError,
 )
-from app.core.redis import blacklist_token, is_token_blacklisted
+from app.core.redis import (
+    blacklist_token,
+    clear_failed_logins,
+    is_login_locked,
+    is_token_blacklisted,
+    record_failed_login,
+)
 from app.core.security import (
     JWTError,
     create_access_token,
@@ -89,14 +95,23 @@ async def login(db: AsyncSession, *, email: str, password: str) -> TokenResponse
         UnauthorizedError: On unknown email or wrong password.
         ForbiddenError: If the account is inactive or unverified.
     """
+    if await is_login_locked(email):
+        raise ForbiddenError(
+            "Account temporarily locked due to too many failed login attempts. "
+            "Please try again later."
+        )
+
     user = await crud.get_user_by_email(db, email)
     if user is None or not verify_password(password, user.password_hash):
+        # Count failures by email to throttle brute-force against a single account.
+        await record_failed_login(email)
         raise UnauthorizedError("Invalid email or password")
     if not user.is_active:
         raise ForbiddenError("This account has been deactivated")
     if not user.is_verified:
         raise ForbiddenError("Please verify your email before logging in")
 
+    await clear_failed_logins(email)
     await crud.update_last_login(db, user, datetime.now(UTC))
     return _issue_tokens(user)
 

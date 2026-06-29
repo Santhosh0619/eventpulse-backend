@@ -2,12 +2,12 @@
 
 ## Current Status
 - Phase: 9 (Performance, Security & Production) — IN PROGRESS
-- Done this phase: Redis caching (PR #16); rate-limiting (PR #17); db-health (PR pending) —
-  /health/ready probe pinging Postgres+Redis (200/503), N+1 audit found no active issues
-  (orders use lazy=selectin, users eager-load profile, other lists are scalar-FK-only),
-  DB pool already 20/10.
-- Phase 9 remaining: security hardening (headers/CORS/body limits/account lockout),
-  Locust load test, OpenAPI check.
+- Done this phase: Redis caching (PR #16); rate-limiting (PR #17); db-health/readiness
+  probe (PR #18); security hardening (PR pending) — security-headers + body-size-limit
+  middleware, account lockout after 10 failed logins (Redis, 15m window), Stripe webhook
+  exempted from rate limiting (signature-verified + idempotent), CORS already locked down.
+- Phase 9 remaining: Locust load test + OpenAPI completeness check (lighter), then DONE
+  with backend → web repo → mobile repo.
 - NOTE: anon-tier 20/min folded into 100/min default (slowapi default_limits can't vary
   per-request auth state cleanly); documented deviation.
 

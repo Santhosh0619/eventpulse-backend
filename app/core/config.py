@@ -43,10 +43,20 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_DEFAULT: str = "100/minute"
     RATE_LIMIT_AUTH: str = "5/minute"  # brute-force-sensitive auth endpoints
-    RATE_LIMIT_WEBHOOK: str = "50/minute"
+    # The Stripe webhook is exempt from rate limiting (signature-verified + idempotent).
     # Trust the X-Forwarded-For header for the client IP. Enable ONLY when behind a
     # trusted reverse proxy (nginx) that sets it, else clients can spoof their IP.
     TRUST_PROXY_HEADERS: bool = False
+
+    # Security hardening
+    LOGIN_MAX_FAILED_ATTEMPTS: int = 10  # lock the account after this many failures
+    LOGIN_LOCKOUT_SECONDS: int = 900  # 15-minute lockout window
+    # Global request-body cap. Kept comfortably above MAX_UPLOAD_SIZE_MB (10 MB) so a
+    # max-size multipart upload (Content-Length > file size due to framing) isn't
+    # rejected by this middleware before reaching the endpoint's own size check.
+    MAX_REQUEST_BODY_BYTES: int = 15 * 1024 * 1024  # 15 MiB
+    # Send HSTS (only meaningful over HTTPS; safe to enable behind a TLS proxy).
+    ENABLE_HSTS: bool = False
 
     # JWT
     JWT_SECRET_KEY: str = "change-me"

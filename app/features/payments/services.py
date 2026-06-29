@@ -18,7 +18,13 @@ from app.features.payments.schemas import PaymentIntentResponse, RefundResponse
 from app.features.tickets import services as tickets_services
 from app.features.users import crud as users_crud
 from app.features.users.models import User
-from app.shared.enums import OrderStatus, OrgMemberRole, PaymentStatus, UserRole
+from app.shared.enums import (
+    NotificationType,
+    OrderStatus,
+    OrgMemberRole,
+    PaymentStatus,
+    UserRole,
+)
 
 ADMIN_ROLES = (OrgMemberRole.OWNER.value, OrgMemberRole.ADMIN.value)
 
@@ -69,13 +75,16 @@ async def _confirm_order_and_issue_tickets(db: AsyncSession, payment: Payment) -
 
         from app.features.notifications import services as notifications_services
 
+        # ``commit=False``: this notification must stay in the same transaction
+        # as the order confirmation and ticket issuance, committed once below.
         await notifications_services.send_notification(
             db,
             user_id=order.user_id,
-            type="order_confirmed",
+            type=NotificationType.ORDER_CONFIRMED.value,
             title="Order confirmed",
             message=f"Your order {order.order_number} has been confirmed.",
             data={"order_id": str(order.id), "screen": "order_detail"},
+            commit=False,
         )
 
 

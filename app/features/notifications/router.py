@@ -33,19 +33,13 @@ async def list_notifications(
     response_model=UnreadCountResponse,
     summary="Unread notification count",
 )
-async def unread_count(
-    current_user: CurrentUser, db: DBSession
-) -> UnreadCountResponse:
+async def unread_count(current_user: CurrentUser, db: DBSession) -> UnreadCountResponse:
     """Return the count of unread notifications."""
     return UnreadCountResponse(unread=await services.get_unread_count(db, current_user))
 
 
-@router.put(
-    "/read-all", response_model=MessageResponse, summary="Mark all read"
-)
-async def mark_all_read(
-    current_user: CurrentUser, db: DBSession
-) -> MessageResponse:
+@router.put("/read-all", response_model=MessageResponse, summary="Mark all read")
+async def mark_all_read(current_user: CurrentUser, db: DBSession) -> MessageResponse:
     """Mark all of the caller's notifications as read."""
     count = await services.mark_all_read(db, current_user)
     return MessageResponse(message=f"Marked {count} notifications as read")

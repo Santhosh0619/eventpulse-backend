@@ -1,5 +1,6 @@
 """Business logic for notifications and multi-channel dispatch."""
 
+import asyncio
 import json
 import logging
 import uuid
@@ -13,7 +14,7 @@ from app.core.exceptions import ForbiddenError, NotFoundError
 from app.features.notifications import crud
 from app.features.notifications.models import Notification
 from app.features.users.models import User
-from app.shared.enums import NotificationChannel
+from app.shared.enums import EventStatus, NotificationChannel, NotificationType
 from app.utils import email as email_utils
 
 logger = logging.getLogger("eventpulse.notifications")
@@ -51,7 +52,8 @@ async def _send_push(fcm_token: str, title: str, message: str, data: dict) -> No
             data={k: str(v) for k, v in (data or {}).items()},
             token=fcm_token,
         )
-        messaging.send(msg, app=app)
+        # ``messaging.send`` is blocking network I/O; keep it off the event loop.
+        await asyncio.to_thread(messaging.send, msg, app=app)
     except Exception:  # noqa: BLE001 - push is best-effort
         logger.exception("Failed to send push notification")
 
@@ -65,14 +67,20 @@ async def send_notification(
     message: str,
     data: dict | None = None,
     channel: str = NotificationChannel.IN_APP.value,
+    commit: bool = True,
 ) -> Notification:
     """Create a notification record and dispatch it to its channel.
 
     The in-app record is always persisted. Push/email delivery is best-effort and
     never raises, so notification failures cannot break the triggering action.
+
+    Pass ``commit=False`` when called from inside another feature's open
+    transaction so the notification write stays atomic with the triggering action;
+    the caller is then responsible for committing.
     """
     notification = await crud.create(
         db,
+        commit=commit,
         user_id=user_id,
         type=type,
         title=title,
@@ -93,7 +101,12 @@ async def send_notification(
 
         user = await get_user_with_profile(db, user_id)
         if user:
-            await email_utils.send_email(user.email, title, f"<p>{message}</p>")
+            # Render through the autoescaped Jinja2 template; never interpolate
+            # the message into raw HTML (avoids injection in the email channel).
+            html = email_utils.render_template(
+                "notification.html", title=title, message=message
+            )
+            await email_utils.send_email(user.email, title, html)
 
     return notification
 
@@ -140,7 +153,7 @@ async def dispatch_event_reminders(db: AsyncSession) -> int:
         (
             await db.execute(
                 select(Event).where(
-                    Event.status == "published",
+                    Event.status == EventStatus.PUBLISHED.value,
                     Event.start_datetime >= now,
                     Event.start_datetime <= window_end,
                 )
@@ -163,16 +176,36 @@ async def dispatch_event_reminders(db: AsyncSession) -> int:
             .scalars()
             .all()
         )
+        # Skip attendees already reminded for this event so a daily run whose
+        # 24h window overlaps the previous run never double-notifies.
+        already_notified = set(
+            (
+                await db.execute(
+                    select(Notification.user_id).where(
+                        Notification.type == NotificationType.EVENT_REMINDER.value,
+                        Notification.data["event_id"].astext == str(event.id),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
         for user_id in attendees:
-            if user_id is None:
+            if user_id is None or user_id in already_notified:
                 continue
             await send_notification(
                 db,
                 user_id=user_id,
-                type="event_reminder",
+                type=NotificationType.EVENT_REMINDER.value,
                 title=f"Reminder: {event.title}",
                 message=f"{event.title} starts soon.",
                 data={"event_id": str(event.id), "screen": "event_detail"},
+                commit=False,
             )
+            already_notified.add(user_id)
             sent += 1
+
+    # One commit for the whole batch instead of one per attendee.
+    if sent:
+        await db.commit()
     return sent

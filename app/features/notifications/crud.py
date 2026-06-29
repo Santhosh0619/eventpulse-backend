@@ -9,11 +9,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.notifications.models import Notification
 
 
-async def create(db: AsyncSession, **fields) -> Notification:
-    """Create and persist a notification."""
+async def create(db: AsyncSession, *, commit: bool = True, **fields) -> Notification:
+    """Create and persist a notification.
+
+    When ``commit`` is ``False`` the row is only flushed, so the write joins the
+    caller's open transaction (e.g. order confirmation) and the caller owns the
+    commit. This keeps the triggering action atomic.
+    """
     notification = Notification(**fields)
     db.add(notification)
-    await db.commit()
+    if commit:
+        await db.commit()
+    else:
+        await db.flush()
     await db.refresh(notification)
     return notification
 
@@ -23,9 +31,7 @@ async def get(db: AsyncSession, notification_id: uuid.UUID) -> Notification | No
     return await db.get(Notification, notification_id)
 
 
-async def list_for_user(
-    db: AsyncSession, user_id: uuid.UUID
-) -> list[Notification]:
+async def list_for_user(db: AsyncSession, user_id: uuid.UUID) -> list[Notification]:
     """Return a user's notifications, newest first."""
     result = await db.execute(
         select(Notification)

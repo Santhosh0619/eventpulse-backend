@@ -14,7 +14,7 @@ from app.features.reviews import crud
 from app.features.reviews.models import Review
 from app.features.reviews.schemas import ReviewSummary
 from app.features.users.models import User
-from app.shared.enums import OrgMemberRole, UserRole
+from app.shared.enums import NotificationType, OrgMemberRole, UserRole
 
 MEMBER_ROLES = (
     OrgMemberRole.OWNER.value,
@@ -119,7 +119,7 @@ async def respond_to_review(
     await notifications_services.send_notification(
         db,
         user_id=updated.user_id,
-        type="review_reply",
+        type=NotificationType.REVIEW_REPLY.value,
         title="An organizer replied to your review",
         message="The organizer responded to your review.",
         data={"event_id": str(updated.event_id), "screen": "event_detail"},

@@ -79,3 +79,11 @@ class NotificationChannel(str, Enum):
     IN_APP = "in_app"
     PUSH = "push"
     EMAIL = "email"
+
+
+class NotificationType(str, Enum):
+    """Semantic type of a notification, used by clients to route/render."""
+
+    ORDER_CONFIRMED = "order_confirmed"
+    REVIEW_REPLY = "review_reply"
+    EVENT_REMINDER = "event_reminder"

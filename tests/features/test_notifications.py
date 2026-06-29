@@ -77,9 +77,7 @@ async def test_mark_read_non_owner_returns_403(
     owner = await make_user(email="owner@example.com")
     other = await make_user(email="other@example.com")
     notif = await _make_notification(db_session, owner.id)
-    resp = await client.put(
-        f"{NOTIF_URL}/{notif.id}/read", headers=auth_headers(other)
-    )
+    resp = await client.put(f"{NOTIF_URL}/{notif.id}/read", headers=auth_headers(other))
     assert resp.status_code == 403
 
 
@@ -128,10 +126,20 @@ async def test_update_fcm_token(
 
 async def test_update_fcm_token_requires_auth(client: AsyncClient) -> None:
     """Registering an FCM token without auth returns 401."""
-    resp = await client.put(
-        "/api/v1/users/me/fcm-token", json={"fcm_token": "x"}
-    )
+    resp = await client.put("/api/v1/users/me/fcm-token", json={"fcm_token": "x"})
     assert resp.status_code == 401
+
+
+async def test_update_fcm_token_rejects_whitespace(
+    client: AsyncClient, verified_user, auth_headers
+) -> None:
+    """A token containing whitespace is rejected as malformed."""
+    resp = await client.put(
+        "/api/v1/users/me/fcm-token",
+        headers=auth_headers(verified_user),
+        json={"fcm_token": "bad token with spaces"},
+    )
+    assert resp.status_code == 422
 
 
 # --------------------------------------------------------------------------- #
@@ -186,7 +194,10 @@ async def test_review_reply_triggers_notification(
         await client.post(
             ORDERS_URL,
             headers=auth_headers(buyer),
-            json={"event_id": event["id"], "items": [{"ticket_type_id": tier["id"], "quantity": 1}]},
+            json={
+                "event_id": event["id"],
+                "items": [{"ticket_type_id": tier["id"], "quantity": 1}],
+            },
         )
     ).json()
     order_obj = await get_order(db_session, uuid.UUID(order["id"]))
@@ -217,9 +228,7 @@ async def test_review_reply_triggers_notification(
     assert "review_reply" in types
 
 
-async def test_dispatch_event_reminders(
-    db_session: AsyncSession, make_user
-) -> None:
+async def test_dispatch_event_reminders(db_session: AsyncSession, make_user) -> None:
     """The reminder job notifies attendees of events starting within 24h."""
     from app.features.attendees.models import Attendee
     from app.features.events.models import Event
@@ -260,3 +269,13 @@ async def test_dispatch_event_reminders(
     assert sent >= 1
     notifs = await services.list_notifications(db_session, attendee_user)
     assert any(n.type == "event_reminder" for n in notifs)
+
+    # A second run within the same window must not re-notify the attendee.
+    sent_again = await services.dispatch_event_reminders(db_session)
+    assert sent_again == 0
+    reminders = [
+        n
+        for n in await services.list_notifications(db_session, attendee_user)
+        if n.type == "event_reminder"
+    ]
+    assert len(reminders) == 1

@@ -75,7 +75,9 @@ class AvatarUploadResponse(BaseModel):
 class FcmTokenRequest(BaseModel):
     """Payload for registering a device's FCM push token."""
 
-    fcm_token: str = Field(..., min_length=1, max_length=500)
+    # FCM registration tokens are opaque and contain no whitespace; reject
+    # malformed values rather than storing garbage that can never deliver.
+    fcm_token: str = Field(..., min_length=1, max_length=500, pattern=r"^\S+$")
 
 
 class MessageResponse(BaseModel):

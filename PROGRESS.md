@@ -1,13 +1,16 @@
 # EventPulse Backend — Progress Tracker
 
 ## Current Status
-- Phase: 9 (Performance, Security & Production) — IN PROGRESS
-- Done this phase: Redis caching (PR #16); rate-limiting (PR #17); db-health/readiness
-  probe (PR #18); security hardening (PR pending) — security-headers + body-size-limit
-  middleware, account lockout after 10 failed logins (Redis, 15m window), Stripe webhook
-  exempted from rate limiting (signature-verified + idempotent), CORS already locked down.
-- Phase 9 remaining: Locust load test + OpenAPI completeness check (lighter), then DONE
-  with backend → web repo → mobile repo.
+- Phase: 9 (Performance, Security & Production) — COMPLETE. **BACKEND COMPLETE.**
+- Phase 9 PRs: Redis caching (#16); rate-limiting (#17); db-health/readiness probe (#18);
+  security hardening (#19) — headers + body-size-limit middleware, account lockout (10 fails
+  /15m, Redis), webhook exempt from rate limit, CORS locked down; loadtest+OpenAPI (PR pending)
+  — Locust file (loadtest/locustfile.py, not in image) + OpenAPI completeness test
+  (every operation has summary+tags). 221 tests passing.
+- App-level production-deploy items (nginx/SSL, prod docker-compose, Sentry/Prometheus,
+  CI prod pipelines) are infra/ops, deferred — out of the in-repo app scope.
+- NEXT: **web repo** (eventpulse-web), then mobile repo (eventpulse-mobile).
+  See eventpulse-project-plan.md for web/mobile tasks per phase.
 - NOTE: anon-tier 20/min folded into 100/min default (slowapi default_limits can't vary
   per-request auth state cleanly); documented deviation.
 

@@ -78,12 +78,12 @@ def create_app() -> FastAPI:
         name="uploads",
     )
 
-    @app.get("/api/v1/health", tags=["Health"])
+    @app.get("/api/v1/health", tags=["Health"], summary="Liveness probe")
     async def health() -> dict[str, str]:
         """Liveness probe: confirms the process is up (no dependency checks)."""
         return {"status": "ok", "version": "1.0.0"}
 
-    @app.get("/api/v1/health/ready", tags=["Health"])
+    @app.get("/api/v1/health/ready", tags=["Health"], summary="Readiness probe")
     async def readiness(db: DBSession, response: Response) -> dict:
         """Readiness probe: verifies the database and Redis are reachable.
 

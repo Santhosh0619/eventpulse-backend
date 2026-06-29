@@ -39,6 +39,15 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # Rate limiting (slowapi). Limits are per identity (auth token or client IP).
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_DEFAULT: str = "100/minute"
+    RATE_LIMIT_AUTH: str = "5/minute"  # brute-force-sensitive auth endpoints
+    RATE_LIMIT_WEBHOOK: str = "50/minute"
+    # Trust the X-Forwarded-For header for the client IP. Enable ONLY when behind a
+    # trusted reverse proxy (nginx) that sets it, else clients can spoof their IP.
+    TRUST_PROXY_HEADERS: bool = False
+
     # JWT
     JWT_SECRET_KEY: str = "change-me"
     JWT_ALGORITHM: str = "HS256"

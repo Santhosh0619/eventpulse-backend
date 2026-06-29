@@ -5,7 +5,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 
+from app.core.config import settings
 from app.core.dependencies import DBSession, get_current_user
+from app.core.rate_limit import limiter
 from app.features.payments import services
 from app.features.payments.schemas import (
     CreateIntentRequest,
@@ -38,6 +40,7 @@ async def create_intent(
     response_model=WebhookResponse,
     summary="Stripe webhook receiver",
 )
+@limiter.limit(settings.RATE_LIMIT_WEBHOOK)
 async def stripe_webhook(request: Request, db: DBSession) -> WebhookResponse:
     """Receive and process Stripe webhook events (signature-verified, no auth)."""
     payload = await request.body()

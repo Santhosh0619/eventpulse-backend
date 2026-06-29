@@ -2,11 +2,13 @@
 
 ## Current Status
 - Phase: 9 (Performance, Security & Production) — IN PROGRESS
-- Done this phase: Redis caching layer (app/core/cache.py) — event listings 5m, ticket
-  availability 30s, review summaries 10m, recommendations 1h; invalidation wired on the
-  relevant writes; conftest flushes test Redis per test (PR pending). 206 tests.
-- Phase 9 remaining: rate-limiting (slowapi), DB optimization + health-check DB ping,
+- Done this phase: Redis caching (PR #16); rate-limiting via slowapi (PR pending) —
+  default 100/min per identity (token-hash or IP), 5/min auth endpoints, 50/min webhook;
+  limiter gated off in tests via conftest. DB pool already 20/10 in config.
+- Phase 9 remaining: DB optimization (N+1/selectinload) + health-check DB ping,
   security hardening (headers/CORS/body limits/account lockout), Locust load test, OpenAPI check.
+- NOTE: anon-tier 20/min folded into 100/min default (slowapi default_limits can't vary
+  per-request auth state cleanly); documented deviation.
 
 ## (Phase 8 — COMPLETE)
 - Phase: 8 (Analytics, Recommendations & Admin) — COMPLETE

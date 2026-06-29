@@ -5,10 +5,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.middleware import setup_middleware
+from app.core.rate_limit import limiter
 
 # Feature routers
 from app.features.admin.router import router as admin_router
@@ -52,6 +56,13 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         debug=settings.DEBUG,
     )
+
+    # Rate limiting: register the limiter, its 429 handler, and middleware. The
+    # SlowAPIMiddleware applies the default limit to every route; specific routes
+    # tighten it with their own @limiter.limit decorators.
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
 
     setup_middleware(app)
     register_exception_handlers(app)

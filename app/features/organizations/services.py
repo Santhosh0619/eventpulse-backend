@@ -15,7 +15,7 @@ from app.features.organizations import crud
 from app.features.organizations.models import Organization, OrganizationMember
 from app.features.users import services as users_services
 from app.features.users.models import User
-from app.shared.enums import InvitationStatus, OrgMemberRole
+from app.shared.enums import AuditAction, InvitationStatus, OrgMemberRole
 from app.shared.slug import generate_unique_slug
 from app.utils import email as email_utils
 
@@ -63,7 +63,24 @@ async def create_organization(
         name, lambda candidate: crud.slug_exists(db, candidate)
     )
     fields = {**payload, "slug": slug, "created_by": user.id}
-    return await crud.create_org_with_owner(db, fields=fields, owner_id=user.id)
+    org = await crud.create_org_with_owner(
+        db, fields=fields, owner_id=user.id, commit=False
+    )
+
+    from app.features.admin import services as admin_services
+
+    await admin_services.log_action(
+        db,
+        action=AuditAction.ORG_CREATED.value,
+        entity_type="organization",
+        entity_id=org.id,
+        user_id=user.id,
+        new_values={"name": org.name, "slug": org.slug},
+        commit=False,
+    )
+    await db.commit()
+    await db.refresh(org)
+    return org
 
 
 async def get_organization(db: AsyncSession, org_id: uuid.UUID) -> Organization:
@@ -139,6 +156,19 @@ async def invite_member(
         raise ConflictError("An invitation is already pending for this email")
 
     token = secrets.token_urlsafe(32)
+
+    from app.features.admin import services as admin_services
+
+    # Flushed before the invitation insert so both commit together below.
+    await admin_services.log_action(
+        db,
+        action=AuditAction.MEMBER_INVITED.value,
+        entity_type="organization",
+        entity_id=org_id,
+        user_id=user.id,
+        new_values={"invited_email": email, "role": role},
+        commit=False,
+    )
     member = await crud.add_invitation(
         db,
         org_id=org_id,
@@ -197,6 +227,20 @@ async def change_member_role(
     ):
         raise ConflictError("An organization must have at least one owner")
 
+    old_role = target.role
+
+    from app.features.admin import services as admin_services
+
+    await admin_services.log_action(
+        db,
+        action=AuditAction.MEMBER_ROLE_CHANGED.value,
+        entity_type="organization",
+        entity_id=org_id,
+        user_id=user.id,
+        old_values={"user_id": str(target_user_id), "role": old_role},
+        new_values={"user_id": str(target_user_id), "role": role},
+        commit=False,
+    )
     return await crud.update_member_role(db, target, role)
 
 
@@ -223,6 +267,19 @@ async def remove_member(
         if await _owner_count(db, org_id) <= 1:
             raise ConflictError("An organization must have at least one owner")
 
+    removed_role = target.role
+
+    from app.features.admin import services as admin_services
+
+    await admin_services.log_action(
+        db,
+        action=AuditAction.MEMBER_REMOVED.value,
+        entity_type="organization",
+        entity_id=org_id,
+        user_id=user.id,
+        old_values={"user_id": str(target_user_id), "role": removed_role},
+        commit=False,
+    )
     await crud.remove_member(db, target)
 
 

@@ -87,3 +87,21 @@ class NotificationType(str, Enum):
     ORDER_CONFIRMED = "order_confirmed"
     REVIEW_REPLY = "review_reply"
     EVENT_REMINDER = "event_reminder"
+
+
+class AuditAction(str, Enum):
+    """Significant actions recorded in the audit log (``entity.verb``)."""
+
+    EVENT_CREATED = "event.created"
+    EVENT_PUBLISHED = "event.published"
+    EVENT_CANCELLED = "event.cancelled"
+    EVENT_FEATURED = "event.featured"
+    ORDER_CONFIRMED = "order.confirmed"
+    PAYMENT_REFUNDED = "payment.refunded"
+    ORG_CREATED = "organization.created"
+    ORG_VERIFIED = "organization.verified"
+    MEMBER_INVITED = "member.invited"
+    MEMBER_ROLE_CHANGED = "member.role_changed"
+    MEMBER_REMOVED = "member.removed"
+    USER_UPDATED = "user.updated"
+    USER_ROLE_CHANGED = "user.role_changed"

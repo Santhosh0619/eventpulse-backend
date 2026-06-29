@@ -19,6 +19,7 @@ from app.features.tickets import services as tickets_services
 from app.features.users import crud as users_crud
 from app.features.users.models import User
 from app.shared.enums import (
+    AuditAction,
     NotificationType,
     OrderStatus,
     OrgMemberRole,
@@ -86,6 +87,19 @@ async def _confirm_order_and_issue_tickets(db: AsyncSession, payment: Payment) -
             data={"order_id": str(order.id), "screen": "order_detail"},
             commit=False,
         )
+
+    from app.features.admin import services as admin_services
+
+    # Audit entry joins the webhook's transaction (committed by handle_webhook).
+    await admin_services.log_action(
+        db,
+        action=AuditAction.ORDER_CONFIRMED.value,
+        entity_type="order",
+        entity_id=order.id,
+        user_id=order.user_id,
+        new_values={"status": order.status, "order_number": order.order_number},
+        commit=False,
+    )
 
 
 async def handle_webhook(
@@ -176,6 +190,23 @@ async def process_refund(
         for item in order.items:
             if item.ticket_type_id is not None:
                 await tickets_services.release(db, item.ticket_type_id, item.quantity)
+
+    from app.features.admin import services as admin_services
+
+    # ``commit=False``: audit entry commits atomically with the refund below.
+    await admin_services.log_action(
+        db,
+        action=AuditAction.PAYMENT_REFUNDED.value,
+        entity_type="payment",
+        entity_id=payment.id,
+        user_id=user.id,
+        new_values={
+            "refund_amount": str(payment.refund_amount),
+            "payment_status": payment.status,
+            "order_status": order.status,
+        },
+        commit=False,
+    )
 
     await db.commit()
     await db.refresh(payment)

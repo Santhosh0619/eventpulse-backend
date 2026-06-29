@@ -1,13 +1,14 @@
 # EventPulse Backend — Progress Tracker
 
 ## Current Status
-- Phase: 8 (Analytics, Recommendations & Admin) — IN PROGRESS
-- Done this phase: `analytics` (PR #13 merged); `recommendations` (PR pending) — weighted
-  scoring (category .3 / location .2 / price .15 / popularity .2 / rating .15), personalized
-  feed + similar events; read-only, no model/migration.
-- Next in Phase 8: `admin` feature (audit_logs = Table 15, admin CRUD, log_action() wired
-  into existing mutations).
-- Then Phase 9 (caching/rate-limiting/security hardening), then web repo, then mobile repo.
+- Phase: 8 (Analytics, Recommendations & Admin) — COMPLETE (admin PR pending)
+- Done this phase: `analytics` (PR #13), `recommendations` (PR #14), `admin` (PR pending) —
+  audit_logs (Table 15 = ALL 15 TABLES NOW LIVE), admin dashboard + user/org/event management
+  + audit-log viewer, log_action() utility wired into event create/publish/cancel,
+  order confirm, payment refund, org create/invite/role-change/member-remove, user role change.
+- Migration head: 4db3a67e2fae (audit_logs).
+- NEXT: Phase 9 (Redis caching, rate-limiting via slowapi, DB/query optimization, security
+  headers + hardening, load testing). Then web repo, then mobile repo.
 - DEFERRED to Phase 9: API rate limiting (no limiter exists anywhere yet).
 
 ### notifications feature (DONE)
@@ -44,16 +45,22 @@
 - **payments** (PR #10) — Stripe intents, webhook fulfillment, refunds; place_order now PENDING
 - **reviews** (PR #11) — verified-attendee reviews, summaries, organizer responses, moderation
 - **notifications** (PR #12) — multi-channel dispatch, fcm-token, triggers, daily reminders
+- **analytics** (PR #13) — event sales/attendance, org overview, platform dashboard (no model)
+- **recommendations** (PR #14) — weighted personalized feed + similar events (no model)
+- **admin** (PR pending) — audit_logs (Table 15), dashboard, user/org/event mgmt, audit viewer,
+  log_action() wired into mutations across events/payments/organizations/users
 
 ## Merged Branches
 - #1 auth, #2 users, #3 organizations, #4 categories, #5 events, #6 media,
-  #7 tickets, #8 orders, #9 attendees, #10 payments, #11 reviews, #12 notifications
+  #7 tickets, #8 orders, #9 attendees, #10 payments, #11 reviews, #12 notifications,
+  #13 analytics, #14 recommendations
 
-## Created Tables (14 of 15)
+## Created Tables (15 of 15 — COMPLETE)
 - users, user_profiles, organizations, organization_members, categories, events,
-  event_media, ticket_types, orders, order_items, attendees, payments, reviews, notifications
-- Remaining: audit_logs (Phase 8). Migration head: 37ce071de6f6
-- 172 tests passing. APScheduler runs cleanup_expired_orders every 60s + daily event reminders.
+  event_media, ticket_types, orders, order_items, attendees, payments, reviews,
+  notifications, audit_logs
+- Migration head: 4db3a67e2fae (audit_logs).
+- 201 tests passing. APScheduler runs cleanup_expired_orders every 60s + daily event reminders.
 
 ## Reminder
 - ALWAYS `git checkout -b feature/<name>` BEFORE writing code (caught a slip on events).

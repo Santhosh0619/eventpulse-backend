@@ -3,16 +3,19 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy import text
 
 from app.core.config import settings
+from app.core.dependencies import DBSession
 from app.core.exceptions import register_exception_handlers
 from app.core.middleware import setup_middleware
 from app.core.rate_limit import limiter
+from app.core.redis import get_redis
 
 # Feature routers
 from app.features.admin.router import router as admin_router
@@ -77,8 +80,36 @@ def create_app() -> FastAPI:
 
     @app.get("/api/v1/health", tags=["Health"])
     async def health() -> dict[str, str]:
-        """Liveness probe used by Docker and uptime monitoring."""
+        """Liveness probe: confirms the process is up (no dependency checks)."""
         return {"status": "ok", "version": "1.0.0"}
+
+    @app.get("/api/v1/health/ready", tags=["Health"])
+    async def readiness(db: DBSession, response: Response) -> dict:
+        """Readiness probe: verifies the database and Redis are reachable.
+
+        Returns 200 when all dependencies are healthy, else 503 so load balancers
+        and uptime monitors can route around an unhealthy instance.
+        """
+        checks: dict[str, str] = {}
+        try:
+            await db.execute(text("SELECT 1"))
+            checks["database"] = "ok"
+        except Exception:  # noqa: BLE001 - report failure, don't propagate
+            checks["database"] = "error"
+        try:
+            await get_redis().ping()
+            checks["redis"] = "ok"
+        except Exception:  # noqa: BLE001 - report failure, don't propagate
+            checks["redis"] = "error"
+
+        healthy = all(v == "ok" for v in checks.values())
+        if not healthy:
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {
+            "status": "ok" if healthy else "degraded",
+            "version": "1.0.0",
+            "checks": checks,
+        }
 
     _register_routers(app)
     return app

@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import cache
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.features.attendees import services as attendees_services
 from app.features.events import services as events_services
@@ -35,13 +36,15 @@ async def submit_review(
         raise ConflictError("You have already reviewed this event")
 
     try:
-        return await crud.create_review(
+        review = await crud.create_review(
             db, event_id=event_id, user_id=user.id, **payload
         )
     except IntegrityError as exc:
         # Backstop for a concurrent duplicate slipping past the existence check.
         await db.rollback()
         raise ConflictError("You have already reviewed this event") from exc
+    await cache.delete(_summary_key(event_id))
+    return review
 
 
 async def list_reviews(db: AsyncSession, event_id: uuid.UUID) -> list[Review]:
@@ -50,9 +53,20 @@ async def list_reviews(db: AsyncSession, event_id: uuid.UUID) -> list[Review]:
     return await crud.list_for_event(db, event_id, visible_only=True)
 
 
+def _summary_key(event_id: uuid.UUID) -> str:
+    """Cache key for an event's review summary."""
+    return f"{cache.REVIEW_SUMMARY_PREFIX}{event_id}"
+
+
 async def get_summary(db: AsyncSession, event_id: uuid.UUID) -> ReviewSummary:
-    """Return aggregate rating statistics for an event (public)."""
-    await events_services.get_event(db, event_id)
+    """Return aggregate rating statistics for an event (public, cached 10m)."""
+    await events_services.get_event(db, event_id)  # preserve 404 on miss/hit
+
+    key = _summary_key(event_id)
+    cached = await cache.get_json(key)
+    if cached is not None:
+        return ReviewSummary(**cached)
+
     distribution = await crud.rating_distribution(db, event_id)
     total = sum(distribution.values())
     average = (
@@ -60,12 +74,14 @@ async def get_summary(db: AsyncSession, event_id: uuid.UUID) -> ReviewSummary:
         if total
         else 0.0
     )
-    return ReviewSummary(
+    summary = ReviewSummary(
         event_id=event_id,
         total_reviews=total,
         average_rating=average,
         distribution=distribution,
     )
+    await cache.set_json(key, summary.model_dump(mode="json"), cache.TTL_REVIEW_SUMMARY)
+    return summary
 
 
 async def _require_own_review(
@@ -87,13 +103,16 @@ async def update_review(
     review = await _require_own_review(db, review_id, user)
     if fields:
         await crud.update_review(db, review, fields)
+        await cache.delete(_summary_key(review.event_id))
     return review
 
 
 async def delete_review(db: AsyncSession, review_id: uuid.UUID, user: User) -> None:
     """Delete the caller's own review."""
     review = await _require_own_review(db, review_id, user)
+    event_id = review.event_id
     await crud.delete_review(db, review)
+    await cache.delete(_summary_key(event_id))
 
 
 async def respond_to_review(
@@ -134,4 +153,6 @@ async def set_visibility(
     review = await crud.get_review(db, review_id)
     if review is None:
         raise NotFoundError("Review not found")
-    return await crud.update_review(db, review, {"is_visible": is_visible})
+    updated = await crud.update_review(db, review, {"is_visible": is_visible})
+    await cache.delete(_summary_key(review.event_id))
+    return updated

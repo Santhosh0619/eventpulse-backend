@@ -1,15 +1,20 @@
 """Business logic for events: lifecycle, search, and permissions."""
 
+import hashlib
+import json
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import cache
 from app.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
 from app.features.categories import services as categories_services
 from app.features.events import crud
 from app.features.events.models import Event
+from app.features.events.schemas import EventRead
 from app.features.organizations import services as orgs_services
 from app.features.users.models import User
+from app.shared.base_schemas import PaginatedResponse
 from app.shared.enums import AuditAction, EventStatus, OrgMemberRole
 from app.shared.slug import generate_unique_slug
 
@@ -74,6 +79,7 @@ async def create_event(db: AsyncSession, user: User, payload: dict) -> Event:
     )
     await db.commit()
     await db.refresh(event)
+    await _invalidate_event_lists()
     return event
 
 
@@ -100,6 +106,7 @@ async def update_event(
         await _validate_category(db, fields["category_id"])
     if fields:
         await crud.update_event(db, event, fields)
+        await _invalidate_event_lists()
     return event
 
 
@@ -108,6 +115,7 @@ async def delete_event(db: AsyncSession, event_id: uuid.UUID, user: User) -> Non
     event = await _require_event(db, event_id)
     await _require_org_role(db, event.organization_id, user, ADMIN_ROLES)
     await crud.delete_event(db, event)
+    await _invalidate_event_lists()
 
 
 async def publish_event(db: AsyncSession, event_id: uuid.UUID, user: User) -> Event:
@@ -143,7 +151,9 @@ async def publish_event(db: AsyncSession, event_id: uuid.UUID, user: User) -> Ev
     await _log_status_change(
         db, event, user, AuditAction.EVENT_PUBLISHED.value, EventStatus.PUBLISHED.value
     )
-    return await crud.update_status(db, event, EventStatus.PUBLISHED.value)
+    updated = await crud.update_status(db, event, EventStatus.PUBLISHED.value)
+    await _invalidate_event_lists()
+    return updated
 
 
 async def cancel_event(db: AsyncSession, event_id: uuid.UUID, user: User) -> Event:
@@ -153,7 +163,9 @@ async def cancel_event(db: AsyncSession, event_id: uuid.UUID, user: User) -> Eve
     await _log_status_change(
         db, event, user, AuditAction.EVENT_CANCELLED.value, EventStatus.CANCELLED.value
     )
-    return await crud.update_status(db, event, EventStatus.CANCELLED.value)
+    updated = await crud.update_status(db, event, EventStatus.CANCELLED.value)
+    await _invalidate_event_lists()
+    return updated
 
 
 async def _log_status_change(
@@ -173,9 +185,39 @@ async def _log_status_change(
     )
 
 
-async def search_events(db: AsyncSession, *, page: int, limit: int, **filters):
-    """Search events with filters; defaults to published events for discovery."""
-    return await crud.search_events(db, page=page, limit=limit, **filters)
+def _list_key(*, page: int, limit: int, **filters) -> str:
+    """Build a stable cache key for a search-events query from its parameters."""
+    blob = json.dumps(
+        {"page": page, "limit": limit, **filters}, sort_keys=True, default=str
+    )
+    digest = hashlib.sha256(blob.encode()).hexdigest()[:16]
+    return f"{cache.EVENT_LIST_PREFIX}{digest}"
+
+
+async def _invalidate_event_lists() -> None:
+    """Drop all cached event listings (called after any event mutation)."""
+    await cache.invalidate_prefix(cache.EVENT_LIST_PREFIX)
+
+
+async def search_events(
+    db: AsyncSession, *, page: int, limit: int, **filters
+) -> PaginatedResponse:
+    """Search events with filters; defaults to published events (cached 5m)."""
+    key = _list_key(page=page, limit=limit, **filters)
+    cached = await cache.get_json(key)
+    if cached is not None:
+        return PaginatedResponse[EventRead].model_validate(cached)
+
+    result = await crud.search_events(db, page=page, limit=limit, **filters)
+    payload = PaginatedResponse[EventRead](
+        items=[EventRead.model_validate(e) for e in result.items],
+        total=result.total,
+        page=result.page,
+        limit=result.limit,
+        pages=result.pages,
+    )
+    await cache.set_json(key, payload.model_dump(mode="json"), cache.TTL_EVENT_LIST)
+    return payload
 
 
 async def get_featured(db: AsyncSession, limit: int = 10) -> list[Event]:

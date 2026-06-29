@@ -109,15 +109,18 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture(autouse=True)
 async def _reset_redis():
-    """Reset the module-level Redis client around each test.
+    """Reset the module-level Redis client and flush cached state around each test.
 
     The app caches a single Redis client, but pytest-asyncio gives every test its
     own event loop, so a client created in one test is unusable in the next.
     Resetting forces a fresh client bound to the current loop and closes it after.
+    Flushing at setup keeps cache entries (e.g. event listings, which share keys
+    across tests) from leaking between otherwise-isolated tests.
     """
     import app.core.redis as redis_mod
 
     redis_mod._redis = None
+    await redis_mod.get_redis().flushdb()
     yield
     if redis_mod._redis is not None:
         await redis_mod._redis.aclose()

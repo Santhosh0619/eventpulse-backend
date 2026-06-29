@@ -1,7 +1,15 @@
 # EventPulse Backend — Progress Tracker
 
 ## Current Status
-- Phase: 8 (Analytics, Recommendations & Admin) — COMPLETE (admin PR pending)
+- Phase: 9 (Performance, Security & Production) — IN PROGRESS
+- Done this phase: Redis caching layer (app/core/cache.py) — event listings 5m, ticket
+  availability 30s, review summaries 10m, recommendations 1h; invalidation wired on the
+  relevant writes; conftest flushes test Redis per test (PR pending). 206 tests.
+- Phase 9 remaining: rate-limiting (slowapi), DB optimization + health-check DB ping,
+  security hardening (headers/CORS/body limits/account lockout), Locust load test, OpenAPI check.
+
+## (Phase 8 — COMPLETE)
+- Phase: 8 (Analytics, Recommendations & Admin) — COMPLETE
 - Done this phase: `analytics` (PR #13), `recommendations` (PR #14), `admin` (PR pending) —
   audit_logs (Table 15 = ALL 15 TABLES NOW LIVE), admin dashboard + user/org/event management
   + audit-log viewer, log_action() utility wired into event create/publish/cancel,

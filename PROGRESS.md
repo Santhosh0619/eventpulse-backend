@@ -2,10 +2,11 @@
 
 ## Current Status
 - Phase: 8 (Analytics, Recommendations & Admin) — IN PROGRESS
-- Done this phase: `analytics` feature (PR pending) — event sales, event attendance,
-  org overview, platform dashboard; read-only aggregate SQL, no model/migration.
-- Next in Phase 8: `recommendations` feature, then `admin` feature (audit_logs = Table 15,
-  admin CRUD, log_action() wired into existing mutations).
+- Done this phase: `analytics` (PR #13 merged); `recommendations` (PR pending) — weighted
+  scoring (category .3 / location .2 / price .15 / popularity .2 / rating .15), personalized
+  feed + similar events; read-only, no model/migration.
+- Next in Phase 8: `admin` feature (audit_logs = Table 15, admin CRUD, log_action() wired
+  into existing mutations).
 - Then Phase 9 (caching/rate-limiting/security hardening), then web repo, then mobile repo.
 - DEFERRED to Phase 9: API rate limiting (no limiter exists anywhere yet).
 

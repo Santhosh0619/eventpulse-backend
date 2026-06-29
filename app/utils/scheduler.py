@@ -3,7 +3,7 @@
 Jobs run against their own database session (independent of request sessions).
 Registered jobs:
 - ``cleanup_expired_orders`` every 60 seconds (Phase 5).
-Event reminders (Phase 7) are added later.
+- ``event_reminders`` daily at 09:00 (Phase 7).
 """
 
 import logging

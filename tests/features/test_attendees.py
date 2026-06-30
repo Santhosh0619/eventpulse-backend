@@ -205,9 +205,7 @@ async def test_list_my_attendees_returns_own_tickets(
         client, organizer, buyer, auth_headers, db_session
     )
 
-    mine = await client.get(
-        "/api/v1/users/me/attendees", headers=auth_headers(buyer)
-    )
+    mine = await client.get("/api/v1/users/me/attendees", headers=auth_headers(buyer))
     assert mine.status_code == 200
     body = mine.json()
     assert len(body) == 2

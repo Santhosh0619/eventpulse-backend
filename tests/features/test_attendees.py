@@ -195,6 +195,65 @@ async def test_list_attendees_member_only(
     assert forbidden.status_code == 403
 
 
+async def test_list_my_attendees_returns_own_tickets(
+    client: AsyncClient, make_user, auth_headers, db_session: AsyncSession
+) -> None:
+    """A buyer sees only their own attendee records via /users/me/attendees."""
+    organizer = await make_user(email="org@example.com")
+    buyer = await make_user(email="buyer@example.com")
+    event_id, _ = await _place_order_with_attendees(
+        client, organizer, buyer, auth_headers, db_session
+    )
+
+    mine = await client.get(
+        "/api/v1/users/me/attendees", headers=auth_headers(buyer)
+    )
+    assert mine.status_code == 200
+    body = mine.json()
+    assert len(body) == 2
+    assert all(a["ticket_code"].startswith("EP-ATT-") for a in body)
+
+    # The organizer (a different user) has no tickets of their own.
+    organizer_tickets = await client.get(
+        "/api/v1/users/me/attendees", headers=auth_headers(organizer)
+    )
+    assert organizer_tickets.status_code == 200
+    assert organizer_tickets.json() == []
+
+
+async def test_list_my_attendees_filters_by_event(
+    client: AsyncClient, make_user, auth_headers, db_session: AsyncSession
+) -> None:
+    """The event_id query param narrows my tickets to one event."""
+    organizer = await make_user(email="org@example.com")
+    buyer = await make_user(email="buyer@example.com")
+    event_id, _ = await _place_order_with_attendees(
+        client, organizer, buyer, auth_headers, db_session
+    )
+
+    match = await client.get(
+        "/api/v1/users/me/attendees",
+        headers=auth_headers(buyer),
+        params={"event_id": event_id},
+    )
+    assert match.status_code == 200
+    assert len(match.json()) == 2
+
+    other = await client.get(
+        "/api/v1/users/me/attendees",
+        headers=auth_headers(buyer),
+        params={"event_id": str(uuid.uuid4())},
+    )
+    assert other.status_code == 200
+    assert other.json() == []
+
+
+async def test_list_my_attendees_requires_auth(client: AsyncClient) -> None:
+    """The my-tickets endpoint requires authentication."""
+    resp = await client.get("/api/v1/users/me/attendees")
+    assert resp.status_code == 401
+
+
 async def test_attendee_stats(
     client: AsyncClient, make_user, auth_headers, db_session: AsyncSession
 ) -> None:

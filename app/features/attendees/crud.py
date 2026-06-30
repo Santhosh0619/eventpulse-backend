@@ -49,6 +49,20 @@ async def list_for_event(db: AsyncSession, event_id: uuid.UUID) -> list[Attendee
     return list(result.scalars().all())
 
 
+async def list_for_user(
+    db: AsyncSession, user_id: uuid.UUID, event_id: uuid.UUID | None = None
+) -> list[Attendee]:
+    """Return a user's own attendee records (their tickets), newest first.
+
+    Optionally narrow to a single event.
+    """
+    stmt = select(Attendee).where(Attendee.user_id == user_id)
+    if event_id is not None:
+        stmt = stmt.where(Attendee.event_id == event_id)
+    result = await db.execute(stmt.order_by(Attendee.created_at.desc()))
+    return list(result.scalars().all())
+
+
 async def count_for_event(db: AsyncSession, event_id: uuid.UUID) -> tuple[int, int]:
     """Return ``(total, checked_in)`` attendee counts for an event."""
     total = (

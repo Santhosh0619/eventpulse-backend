@@ -41,6 +41,23 @@ async def check_in(
 
 
 @router.get(
+    "/users/me/attendees",
+    response_model=list[AttendeeRead],
+    summary="List my tickets",
+)
+async def list_my_attendees(
+    current_user: CurrentUser,
+    db: DBSession,
+    event_id: uuid.UUID | None = None,
+) -> list:
+    """List the authenticated user's own attendee records (their tickets).
+
+    Optionally filter to a single event with the ``event_id`` query parameter.
+    """
+    return await services.list_my_attendees(db, current_user, event_id)
+
+
+@router.get(
     "/events/{event_id}/attendees",
     response_model=list[AttendeeRead],
     summary="List event attendees",

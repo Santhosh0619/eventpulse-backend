@@ -108,6 +108,13 @@ async def list_attendees(
     return await crud.list_for_event(db, event_id)
 
 
+async def list_my_attendees(
+    db: AsyncSession, user: User, event_id: uuid.UUID | None = None
+) -> list[Attendee]:
+    """List the authenticated user's own attendee records (their tickets)."""
+    return await crud.list_for_user(db, user.id, event_id)
+
+
 async def get_stats(db: AsyncSession, event_id: uuid.UUID, user: User) -> AttendeeStats:
     """Return check-in statistics for an event (org member only)."""
     await _require_event_member(db, event_id, user, MEMBER_ROLES)

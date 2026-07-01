@@ -10,6 +10,16 @@
 - App-level production-deploy items (nginx/SSL, prod docker-compose, Sentry/Prometheus,
   CI prod pipelines) are infra/ops, deferred — out of the in-repo app scope.
 - NEXT: **web repo** (eventpulse-web), then mobile repo (eventpulse-mobile).
+
+## Deployment phase (21 ideas) — backend changes
+- **Idea 14 — AI Recommendations (Gemini) — MERGED (PR #23).** app/core/gemini.py (async
+  client, graceful GeminiError fallback), recommendations/ai.py (Gemini ranking over the
+  heuristic candidate pool, falls back to heuristic), AiRecommendedEvent schema, endpoints
+  GET /recommendations/for-me + GET /events/{id}/similar. config GEMINI_API_KEY/GEMINI_MODEL.
+  google-generativeai added (lazy import). No migration. 240 tests.
+- **Idea 15 — AI Event Descriptions (Gemini) — this PR.** POST /events/generate-description
+  (auth): keywords[] + tone → generated description via Gemini with a templated fallback
+  (returns ai_generated flag). services.generate_event_description. No migration. 247 tests.
   See eventpulse-project-plan.md for web/mobile tasks per phase.
 - NOTE: anon-tier 20/min folded into 100/min default (slowapi default_limits can't vary
   per-request auth state cleanly); documented deviation.

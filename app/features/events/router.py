@@ -9,7 +9,13 @@ from fastapi import APIRouter, Depends, Query, status
 from app.core.dependencies import DBSession, get_current_user
 from app.features.events import services
 from app.features.events.models import Event
-from app.features.events.schemas import EventCreate, EventRead, EventUpdate
+from app.features.events.schemas import (
+    EventCreate,
+    EventRead,
+    EventUpdate,
+    GenerateDescriptionRequest,
+    GenerateDescriptionResponse,
+)
 from app.features.recommendations import ai as recommendations_ai
 from app.features.recommendations.schemas import AiRecommendedEvent
 from app.features.users.models import User
@@ -33,6 +39,28 @@ async def create_event(
     """Create a draft event (requires org membership)."""
     return await services.create_event(
         db, current_user, payload.model_dump(exclude_none=True)
+    )
+
+
+@router.post(
+    "/generate-description",
+    response_model=GenerateDescriptionResponse,
+    summary="AI-generate an event description from keywords",
+)
+async def generate_description(
+    payload: GenerateDescriptionRequest,
+    current_user: CurrentUser,
+) -> GenerateDescriptionResponse:
+    """Draft an event description from keywords (Gemini, with fallback).
+
+    Requires authentication. Falls back to a templated description when the AI
+    service is unavailable so the button always returns usable text.
+    """
+    description, ai_generated = await services.generate_event_description(
+        payload.keywords, payload.tone
+    )
+    return GenerateDescriptionResponse(
+        description=description, ai_generated=ai_generated
     )
 
 

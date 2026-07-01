@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import cache
 from app.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
+from app.core.gemini import GeminiError, get_gemini
 from app.features.categories import services as categories_services
 from app.features.events import crud
 from app.features.events.models import Event
@@ -223,3 +224,43 @@ async def search_events(
 async def get_featured(db: AsyncSession, limit: int = 10) -> list[Event]:
     """Return featured published events."""
     return await crud.get_featured(db, limit=limit)
+
+
+def _fallback_description(keywords: list[str], tone: str) -> str:
+    """Return a simple templated description when AI generation is unavailable."""
+    if len(keywords) > 1:
+        topics = f"{', '.join(keywords[:-1])} and {keywords[-1]}"
+    else:
+        topics = keywords[0]
+    return (
+        f"Join us for an unforgettable event featuring {topics}. "
+        "Whether you're a first-timer or a returning guest, there's something "
+        "here for everyone. Reserve your spot today and be part of the experience."
+    )
+
+
+async def generate_event_description(
+    keywords: list[str], tone: str = "professional"
+) -> tuple[str, bool]:
+    """Draft an event description from keywords via Gemini, with a fallback.
+
+    Returns ``(description, ai_generated)``. Degrades to a templated description
+    when Gemini is unconfigured, errors, or returns unusable output.
+    """
+    gemini = get_gemini()
+    if gemini.is_configured:
+        prompt = (
+            f"Write a compelling, {tone} event description of 2-3 short "
+            "paragraphs for a marketing page, based on these keywords: "
+            f"{', '.join(keywords)}. Do not invent a specific date, ticket "
+            "price, or venue name. Return only the description text, with no "
+            "title, preamble, or markdown."
+        )
+        try:
+            text = await gemini.generate_text(prompt, temperature=0.8)
+            cleaned = text.strip()
+            if cleaned:
+                return cleaned, True
+        except GeminiError:
+            pass
+    return _fallback_description(keywords, tone), False

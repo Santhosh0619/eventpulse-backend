@@ -86,6 +86,18 @@ class Settings(BaseSettings):
     # Firebase
     FIREBASE_CREDENTIALS_JSON: str = '{"type":"service_account"}'
 
+    # Google Gemini (AI features: recommendations, description generation,
+    # review moderation, analytics summaries, attendee chatbot). Free tier:
+    # gemini-2.0-flash, 15 RPM. When GEMINI_API_KEY is empty, AI features
+    # gracefully degrade to their non-AI fallbacks.
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+
+    @property
+    def gemini_enabled(self) -> bool:
+        """Return whether a Gemini API key is configured."""
+        return bool(self.GEMINI_API_KEY.strip())
+
     # Frontend URLs
     WEB_APP_URL: str = "http://localhost:5173"
 

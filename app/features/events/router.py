@@ -10,6 +10,8 @@ from app.core.dependencies import DBSession, get_current_user
 from app.features.events import services
 from app.features.events.models import Event
 from app.features.events.schemas import EventCreate, EventRead, EventUpdate
+from app.features.recommendations import ai as recommendations_ai
+from app.features.recommendations.schemas import AiRecommendedEvent
 from app.features.users.models import User
 from app.shared.base_schemas import PaginatedResponse
 from app.shared.enums import EventStatus
@@ -95,6 +97,23 @@ async def get_event_by_slug(slug: str, db: DBSession) -> Event:
 async def get_event(event_id: uuid.UUID, db: DBSession) -> Event:
     """Return a single event by id (public)."""
     return await services.get_event(db, event_id)
+
+
+@router.get(
+    "/{event_id}/similar",
+    response_model=list[AiRecommendedEvent],
+    summary="AI-powered similar events",
+)
+async def similar_events(
+    event_id: uuid.UUID,
+    db: DBSession,
+    limit: Annotated[int, Query(ge=1, le=10)] = 6,
+) -> list[AiRecommendedEvent]:
+    """Return Gemini-curated events similar to the given event (public).
+
+    Falls back to heuristic similarity ranking when the AI service is unavailable.
+    """
+    return await recommendations_ai.get_ai_similar(db, event_id, limit)
 
 
 @router.put("/{event_id}", response_model=EventRead, summary="Update an event")

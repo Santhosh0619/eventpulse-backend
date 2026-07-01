@@ -73,6 +73,21 @@ async def user_pref_cities(db: AsyncSession, user_id: uuid.UUID) -> set[str]:
     return {r for r in rows if r}
 
 
+async def user_attended_event_briefs(
+    db: AsyncSession, user_id: uuid.UUID, limit: int = 10
+) -> list[Event]:
+    """Return the user's most recent attended events (for AI taste context)."""
+    stmt = (
+        select(Event)
+        .join(Attendee, Attendee.event_id == Event.id)
+        .where(Attendee.user_id == user_id)
+        .order_by(Event.start_datetime.desc())
+        .distinct()
+        .limit(limit)
+    )
+    return list((await db.execute(stmt)).scalars().all())
+
+
 async def user_avg_price(db: AsyncSession, user_id: uuid.UUID) -> Decimal | None:
     """Return the user's average paid ticket price across confirmed orders."""
     avg = (

@@ -10,3 +10,17 @@ class RecommendedEvent(BaseModel):
 
     event: EventRead
     score: float
+
+
+class AiRecommendedEvent(BaseModel):
+    """An AI-recommended event with a short natural-language rationale.
+
+    ``reason`` is populated when the Gemini model curated the pick and is
+    ``None`` when the result came from the heuristic fallback. ``score`` carries
+    the heuristic relevance score for fallback picks; AI-curated picks have no
+    score (``None``) since the model, not the scorer, ordered them.
+    """
+
+    event: EventRead
+    reason: str | None = None
+    score: float | None = None

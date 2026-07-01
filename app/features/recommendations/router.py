@@ -6,13 +6,30 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from app.core.dependencies import DBSession, get_current_user
-from app.features.recommendations import services
-from app.features.recommendations.schemas import RecommendedEvent
+from app.features.recommendations import ai, services
+from app.features.recommendations.schemas import AiRecommendedEvent, RecommendedEvent
 from app.features.users.models import User
 
 router = APIRouter()
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+@router.get(
+    "/for-me",
+    response_model=list[AiRecommendedEvent],
+    summary="AI-personalized event recommendations",
+)
+async def ai_for_me(
+    current_user: CurrentUser,
+    db: DBSession,
+    limit: Annotated[int, Query(ge=1, le=10)] = 8,
+) -> list[AiRecommendedEvent]:
+    """Return Gemini-curated event recommendations for the authenticated user.
+
+    Falls back to heuristic ranking when the AI service is unavailable.
+    """
+    return await ai.get_ai_personalized(db, current_user, limit)
 
 
 @router.get(

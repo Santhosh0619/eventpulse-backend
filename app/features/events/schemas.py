@@ -8,6 +8,28 @@ from pydantic import BaseModel, Field, model_validator
 from app.shared.base_schemas import ORMSchema
 
 
+class GenerateDescriptionRequest(BaseModel):
+    """Keywords (and optional tone) used to draft an AI event description."""
+
+    keywords: list[str] = Field(..., min_length=1, max_length=10)
+    tone: str = Field(default="professional", max_length=40)
+
+    @model_validator(mode="after")
+    def _clean_keywords(self) -> "GenerateDescriptionRequest":
+        """Trim keywords and reject an all-empty list."""
+        self.keywords = [k.strip() for k in self.keywords if k.strip()]
+        if not self.keywords:
+            raise ValueError("At least one non-empty keyword is required")
+        return self
+
+
+class GenerateDescriptionResponse(BaseModel):
+    """A generated event description and whether AI produced it."""
+
+    description: str
+    ai_generated: bool
+
+
 class EventBase(BaseModel):
     """Fields shared by create/update payloads."""
 

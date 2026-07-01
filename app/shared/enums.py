@@ -40,6 +40,13 @@ class EventStatus(str, Enum):
     COMPLETED = "completed"
 
 
+class ModerationStatus(str, Enum):
+    """AI moderation outcome stored on a review."""
+
+    APPROVED = "approved"
+    FLAGGED = "flagged"
+
+
 class MediaType(str, Enum):
     """Type of media attached to an event."""
 

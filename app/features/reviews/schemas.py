@@ -34,6 +34,7 @@ class ReviewRead(ORMSchema):
     title: str | None = None
     comment: str | None = None
     is_visible: bool
+    moderation_status: str
     organizer_response: str | None = None
     responded_at: datetime | None = None
     created_at: datetime

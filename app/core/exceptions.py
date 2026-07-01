@@ -55,6 +55,13 @@ class BadRequestError(AppException):
     message = "Bad request"
 
 
+class UnprocessableEntityError(AppException):
+    """Raised when a semantically-invalid request cannot be processed (422)."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    message = "Unprocessable entity"
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Register global exception handlers producing a consistent error envelope."""
 

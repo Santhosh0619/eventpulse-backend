@@ -42,6 +42,12 @@ class Review(BaseModel):
     is_visible: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true")
     )
+    moderation_status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="approved",
+        server_default=text("'approved'"),
+    )
     organizer_response: Mapped[str | None] = mapped_column(Text, nullable=True)
     responded_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

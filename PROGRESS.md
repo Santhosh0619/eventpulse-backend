@@ -17,9 +17,18 @@
   heuristic candidate pool, falls back to heuristic), AiRecommendedEvent schema, endpoints
   GET /recommendations/for-me + GET /events/{id}/similar. config GEMINI_API_KEY/GEMINI_MODEL.
   google-generativeai added (lazy import). No migration. 240 tests.
-- **Idea 15 — AI Event Descriptions (Gemini) — this PR.** POST /events/generate-description
+- **Idea 15 — AI Event Descriptions (Gemini) — MERGED (PR #24).** POST /events/generate-description
   (auth): keywords[] + tone → generated description via Gemini with a templated fallback
   (returns ai_generated flag). services.generate_event_description. No migration. 247 tests.
+- **Idea 16 — AI Review Moderation (Gemini) — this PR.** reviews/moderation.py classifies
+  review text allow/flag/reject (fails OPEN on error/unconfigured). submit_review: reject→422
+  "Review was flagged as inappropriate", flag→saved hidden + moderation_status="flagged".
+  New Review.moderation_status column (MIGRATION 5f2e8b959690). Org endpoints:
+  GET /events/{id}/reviews/management (all incl hidden), POST /reviews/{id}/approve.
+  Added UnprocessableEntityError (422) + ModerationStatus enum. 255 tests.
+  NOTE: test DB (eventpulse_test) is built via create_all (checkfirst) — a NEW COLUMN on an
+  existing table needs the test DB DROPPED so it recreates: `docker compose exec -T postgres
+  psql -U postgres -c "DROP DATABASE IF EXISTS eventpulse_test WITH (FORCE);"` (new tables are fine).
   See eventpulse-project-plan.md for web/mobile tasks per phase.
 - NOTE: anon-tier 20/min folded into 100/min default (slowapi default_limits can't vary
   per-request auth state cleanly); documented deviation.

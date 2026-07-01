@@ -7,15 +7,25 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import cache
-from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
+from app.core.exceptions import (
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    UnprocessableEntityError,
+)
 from app.features.attendees import services as attendees_services
 from app.features.events import services as events_services
 from app.features.organizations import services as orgs_services
-from app.features.reviews import crud
+from app.features.reviews import crud, moderation
 from app.features.reviews.models import Review
 from app.features.reviews.schemas import ReviewSummary
 from app.features.users.models import User
-from app.shared.enums import NotificationType, OrgMemberRole, UserRole
+from app.shared.enums import (
+    ModerationStatus,
+    NotificationType,
+    OrgMemberRole,
+    UserRole,
+)
 
 MEMBER_ROLES = (
     OrgMemberRole.OWNER.value,
@@ -34,6 +44,19 @@ async def submit_review(
         raise ForbiddenError("Only checked-in attendees can review this event")
     if await crud.get_user_review_for_event(db, event_id, user.id) is not None:
         raise ConflictError("You have already reviewed this event")
+
+    # AI moderation: reject inappropriate text; hide flagged text pending approval.
+    decision = await moderation.moderate_review(
+        payload.get("title"), payload.get("comment")
+    )
+    if decision == moderation.REJECT:
+        raise UnprocessableEntityError("Review was flagged as inappropriate")
+    if decision == moderation.FLAG:
+        payload = {
+            **payload,
+            "is_visible": False,
+            "moderation_status": ModerationStatus.FLAGGED.value,
+        }
 
     try:
         review = await crud.create_review(
@@ -154,5 +177,38 @@ async def set_visibility(
     if review is None:
         raise NotFoundError("Review not found")
     updated = await crud.update_review(db, review, {"is_visible": is_visible})
+    await cache.delete(_summary_key(review.event_id))
+    return updated
+
+
+async def _require_event_org_member(
+    db: AsyncSession, event_id: uuid.UUID, user: User
+) -> None:
+    """Ensure the caller is a member of the event's organization."""
+    event = await events_services.get_event(db, event_id)
+    role = await orgs_services.get_user_org_role(db, event.organization_id, user.id)
+    if role is None or role not in MEMBER_ROLES:
+        raise ForbiddenError("Only organization members can manage these reviews")
+
+
+async def list_reviews_for_management(
+    db: AsyncSession, event_id: uuid.UUID, user: User
+) -> list[Review]:
+    """List ALL of an event's reviews (incl. hidden/flagged) for org members."""
+    await _require_event_org_member(db, event_id, user)
+    return await crud.list_for_event(db, event_id, visible_only=False)
+
+
+async def approve_review(db: AsyncSession, review_id: uuid.UUID, user: User) -> Review:
+    """Approve a flagged review (org member): make it visible and mark approved."""
+    review = await crud.get_review(db, review_id)
+    if review is None:
+        raise NotFoundError("Review not found")
+    await _require_event_org_member(db, review.event_id, user)
+    updated = await crud.update_review(
+        db,
+        review,
+        {"is_visible": True, "moderation_status": ModerationStatus.APPROVED.value},
+    )
     await cache.delete(_summary_key(review.event_id))
     return updated

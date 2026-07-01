@@ -63,6 +63,30 @@ async def review_summary(event_id: uuid.UUID, db: DBSession) -> ReviewSummary:
     return await services.get_summary(db, event_id)
 
 
+@router.get(
+    "/events/{event_id}/reviews/management",
+    response_model=list[ReviewRead],
+    summary="List all reviews for moderation (org members)",
+)
+async def list_reviews_for_management(
+    event_id: uuid.UUID, current_user: CurrentUser, db: DBSession
+) -> list[Review]:
+    """List every review for an event, including hidden/flagged (org members)."""
+    return await services.list_reviews_for_management(db, event_id, current_user)
+
+
+@router.post(
+    "/reviews/{review_id}/approve",
+    response_model=ReviewRead,
+    summary="Approve a flagged review (org members)",
+)
+async def approve_review(
+    review_id: uuid.UUID, current_user: CurrentUser, db: DBSession
+) -> Review:
+    """Approve a flagged review: make it visible and mark it approved."""
+    return await services.approve_review(db, review_id, current_user)
+
+
 @router.put("/reviews/{review_id}", response_model=ReviewRead, summary="Edit review")
 async def update_review(
     review_id: uuid.UUID,

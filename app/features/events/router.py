@@ -7,6 +7,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 
 from app.core.dependencies import DBSession, get_current_user
+from app.features.chat import services as chat_services
+from app.features.chat.schemas import ChatRequest, ChatResponse
 from app.features.events import services
 from app.features.events.models import Event
 from app.features.events.schemas import (
@@ -142,6 +144,28 @@ async def similar_events(
     Falls back to heuristic similarity ranking when the AI service is unavailable.
     """
     return await recommendations_ai.get_ai_similar(db, event_id, limit)
+
+
+@router.post(
+    "/{event_id}/chat",
+    response_model=ChatResponse,
+    summary="Ask the event AI chatbot",
+)
+async def event_chat(
+    event_id: uuid.UUID,
+    payload: ChatRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> ChatResponse:
+    """Answer a question about an event using Gemini with the event as context.
+
+    Rate-limited to a fixed number of questions per user per event per hour;
+    exceeding it returns 429. Degrades to a fallback message when AI is
+    unavailable.
+    """
+    return await chat_services.answer_question(
+        db, event_id, current_user, payload.question
+    )
 
 
 @router.put("/{event_id}", response_model=EventRead, summary="Update an event")

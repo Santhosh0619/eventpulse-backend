@@ -52,3 +52,22 @@ async def record_failed_login(identifier: str) -> None:
 async def clear_failed_logins(identifier: str) -> None:
     """Reset the failed-login counter (called on a successful login)."""
     await get_redis().delete(_login_attempts_key(identifier))
+
+
+def _chat_questions_key(user_id: str, event_id: str) -> str:
+    """Redis key counting a user's chatbot questions for one event in the window."""
+    return f"chat:questions:{user_id}:{event_id}"
+
+
+async def record_chat_question(user_id: str, event_id: str, window_seconds: int) -> int:
+    """Increment and return the user's chatbot-question count for an event.
+
+    The count expires after ``window_seconds`` from the first question (fixed
+    window), mirroring the failed-login counter.
+    """
+    redis = get_redis()
+    key = _chat_questions_key(user_id, event_id)
+    count = await redis.incr(key)
+    if count == 1:
+        await redis.expire(key, window_seconds)
+    return count

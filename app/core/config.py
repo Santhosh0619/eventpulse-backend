@@ -92,6 +92,9 @@ class Settings(BaseSettings):
     # gracefully degrade to their non-AI fallbacks.
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.0-flash"
+    # AI chatbot: max questions a user may ask about a single event per window.
+    CHATBOT_MAX_QUESTIONS_PER_HOUR: int = 5
+    CHATBOT_WINDOW_SECONDS: int = 3600  # 1-hour fixed window per user+event
 
     @property
     def gemini_enabled(self) -> bool:

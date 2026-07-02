@@ -37,6 +37,19 @@
   (generate_event_summary + _fallback_summary), AiAnalyticsSummary schema. Refactored
   event_sales/event_attendance into public (auth) + private _event_*_data (no-auth) helpers so
   the summary reuses the aggregates without re-authorizing. No migration. 264 tests.
+- **Idea 19 — AI Chatbot for Attendees (Gemini) — this PR.** POST /api/v1/events/{id}/chat
+  (auth required): {question} → Gemini answer grounded in event details + ticket tiers, returns
+  {answer, generated_by_ai, questions_remaining}. New app/features/chat/ module (schemas/ai/
+  services). Rate limit 5 questions/user/event/hour via a MANUAL Redis fixed-window counter
+  (app/core/redis.py record_chat_question, key chat:questions:{user}:{event}, incr + expire on
+  first) — NOT slowapi (needs per-user+event granularity). New TooManyRequestsError (429).
+  Graceful Gemini fallback (polite message, generated_by_ai=false, still 200). Config
+  CHATBOT_MAX_QUESTIONS_PER_HOUR=5 / CHATBOT_WINDOW_SECONDS=3600. No migration. 275 tests.
+  SECURITY (code-review MEDIUM, fixed): chat only answers PUBLISHED events (404 otherwise) and
+  only feeds ACTIVE tiers to Gemini, so draft/cancelled events + inactive-tier pricing aren't
+  leaked to any authed user via the chatbot.
+  NOTE: chat rate limit is active even in tests (manual Redis counter, unaffected by the
+  suite's _disable_rate_limit slowapi fixture); _reset_redis autouse fixture flushes it per test.
 - NOTE: anon-tier 20/min folded into 100/min default (slowapi default_limits can't vary
   per-request auth state cleanly); documented deviation.
 

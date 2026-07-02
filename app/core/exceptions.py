@@ -62,6 +62,13 @@ class UnprocessableEntityError(AppException):
     message = "Unprocessable entity"
 
 
+class TooManyRequestsError(AppException):
+    """Raised when a caller exceeds an application-level rate quota (429)."""
+
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    message = "Too many requests. Please try again later."
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Register global exception handlers producing a consistent error envelope."""
 

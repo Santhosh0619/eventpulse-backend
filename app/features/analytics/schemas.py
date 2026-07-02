@@ -76,3 +76,11 @@ class PlatformDashboard(BaseModel):
     total_orders: int
     total_revenue: Decimal
     total_tickets_sold: int
+
+
+class AiAnalyticsSummary(BaseModel):
+    """Natural-language summary of an event's analytics."""
+
+    event_id: uuid.UUID
+    summary: str
+    generated_by_ai: bool

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from app.core.dependencies import DBSession, get_current_user, require_role
 from app.features.analytics import services
 from app.features.analytics.schemas import (
+    AiAnalyticsSummary,
     AttendanceAnalytics,
     OrgOverview,
     PlatformDashboard,
@@ -44,6 +45,22 @@ async def event_attendance(
 ) -> AttendanceAnalytics:
     """Return check-in counts, rate, and hourly distribution (org member only)."""
     return await services.event_attendance(db, event_id, current_user)
+
+
+@router.get(
+    "/ai-summary",
+    response_model=AiAnalyticsSummary,
+    summary="AI analytics summary for an event",
+)
+async def ai_summary(
+    event_id: uuid.UUID, current_user: CurrentUser, db: DBSession
+) -> AiAnalyticsSummary:
+    """Return a Gemini natural-language summary of an event's analytics.
+
+    ``event_id`` is a query parameter; the caller must be a member of the event's
+    organization. Degrades to a deterministic summary when Gemini is unavailable.
+    """
+    return await services.event_ai_summary(db, event_id, current_user)
 
 
 @router.get(

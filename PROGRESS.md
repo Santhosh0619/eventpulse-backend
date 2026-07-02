@@ -30,6 +30,13 @@
   existing table needs the test DB DROPPED so it recreates: `docker compose exec -T postgres
   psql -U postgres -c "DROP DATABASE IF EXISTS eventpulse_test WITH (FORCE);"` (new tables are fine).
   See eventpulse-project-plan.md for web/mobile tasks per phase.
+- **Idea 18 — AI Analytics Summary (Gemini) — this PR.** GET /analytics/ai-summary?event_id={id}
+  (org member only): builds sales + attendance analytics for the event and asks Gemini for a
+  concise natural-language paragraph, degrading to a deterministic template summary when Gemini
+  is unconfigured/errors/returns blank (returns generated_by_ai flag). analytics/ai.py
+  (generate_event_summary + _fallback_summary), AiAnalyticsSummary schema. Refactored
+  event_sales/event_attendance into public (auth) + private _event_*_data (no-auth) helpers so
+  the summary reuses the aggregates without re-authorizing. No migration. 264 tests.
 - NOTE: anon-tier 20/min folded into 100/min default (slowapi default_limits can't vary
   per-request auth state cleanly); documented deviation.
 

@@ -50,6 +50,21 @@
   leaked to any authed user via the chatbot.
   NOTE: chat rate limit is active even in tests (manual Redis counter, unaffected by the
   suite's _disable_rate_limit slowapi fixture); _reset_redis autouse fixture flushes it per test.
+- **Idea 11 — WebSocket Real-Time Updates (backend) — IN PROGRESS (saved, not yet CI-verified).**
+  WS endpoint GET /api/v1/ws/events/{event_id} (app/features/events/ws.py): public (count is public
+  info), sends an initial {attendee_count, checked_in} snapshot then forwards Redis pub/sub messages
+  on channel `event:attendees:{event_id}` until disconnect (asyncio.wait over a forward task +
+  a drain task). broadcast_attendee_count(db, event_id) publishes the current count. Hooked into
+  payments/services.handle_webhook: _confirm_order_and_issue_tickets now returns order.event_id;
+  after db.commit() the webhook calls events_ws.broadcast_attendee_count (lazy import). Added
+  attendees/services.count_for_event (public no-auth wrapper of crud.count_for_event). Registered
+  ws router in main.py. No migration.
+  TESTS (tests/features/test_websocket.py): channel/payload helpers ✅, broadcast publishes correct
+  count via real Redis pub/sub ✅ (both PASSED locally). The TestClient WS-handshake test is
+  @pytest.mark.skip — Starlette TestClient uses its own portal event loop which clashes with the
+  import-time async engine ("Future attached to a different loop"); NOT a code bug (snapshot query
+  runs). RESUME: re-run `docker compose run --rm api ruff format/check` + full pytest, then commit
+  any format fixes, push, PR. THEN web + mobile WS clients (live attendee count on EventDetail).
 - NOTE: anon-tier 20/min folded into 100/min default (slowapi default_limits can't vary
   per-request auth state cleanly); documented deviation.
 

@@ -62,11 +62,17 @@ async def create_payment_intent(
     )
 
 
-async def _confirm_order_and_issue_tickets(db: AsyncSession, payment: Payment) -> None:
-    """Confirm the paid order and generate its attendees (idempotent)."""
+async def _confirm_order_and_issue_tickets(
+    db: AsyncSession, payment: Payment
+) -> uuid.UUID | None:
+    """Confirm the paid order and generate its attendees (idempotent).
+
+    Returns the confirmed order's ``event_id`` (so the caller can broadcast the
+    new attendee count after commit), or ``None`` if there was nothing to do.
+    """
     order = await orders_crud.get_order(db, payment.order_id)
     if order is None or order.status != OrderStatus.PENDING.value:
-        return
+        return None
     order.status = OrderStatus.CONFIRMED.value
     order.confirmed_at = datetime.now(UTC)
     if order.user_id is not None:
@@ -100,6 +106,7 @@ async def _confirm_order_and_issue_tickets(db: AsyncSession, payment: Payment) -
         new_values={"status": order.status, "order_number": order.order_number},
         commit=False,
     )
+    return order.event_id
 
 
 async def handle_webhook(
@@ -131,8 +138,13 @@ async def handle_webhook(
         methods = data.get("payment_method_types") or ["card"]
         payment.payment_method = methods[0]
         payment.payment_metadata = {"event_id": event.get("id")}
-        await _confirm_order_and_issue_tickets(db, payment)
+        event_id = await _confirm_order_and_issue_tickets(db, payment)
         await db.commit()
+        if event_id is not None:
+            # Fan out the new attendee count to any live WebSocket clients.
+            from app.features.events import ws as events_ws
+
+            await events_ws.broadcast_attendee_count(db, event_id)
     elif event_type == "payment_intent.payment_failed":
         payment.status = PaymentStatus.FAILED.value
         await db.commit()

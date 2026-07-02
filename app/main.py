@@ -24,6 +24,7 @@ from app.features.attendees.router import router as attendees_router
 from app.features.auth.router import router as auth_router
 from app.features.categories.router import router as categories_router
 from app.features.events.router import router as events_router
+from app.features.events.ws import router as events_ws_router
 from app.features.media.router import router as media_router
 from app.features.notifications.router import router as notifications_router
 from app.features.orders.router import router as orders_router
@@ -125,6 +126,8 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(user_orgs_router, prefix=f"{p}/users", tags=["Organizations"])
     app.include_router(categories_router, prefix=f"{p}/categories", tags=["Categories"])
     app.include_router(events_router, prefix=f"{p}/events", tags=["Events"])
+    # WebSocket for live attendee counts: /api/v1/ws/events/{event_id}
+    app.include_router(events_ws_router, prefix=p, tags=["Events"])
     app.include_router(media_router, prefix=p, tags=["Media"])
     app.include_router(tickets_router, prefix=p, tags=["Tickets"])
     app.include_router(orders_router, prefix=p, tags=["Orders"])

@@ -90,6 +90,15 @@ async def check_in(db: AsyncSession, ticket_code: str, staff: User):
     return attendee, False
 
 
+async def count_for_event(db: AsyncSession, event_id: uuid.UUID) -> tuple[int, int]:
+    """Return ``(total, checked_in)`` attendee counts for an event (public).
+
+    Used by the real-time attendee-count WebSocket; the counts are public event
+    information, so no authorization is required.
+    """
+    return await crud.count_for_event(db, event_id)
+
+
 async def has_checked_in_attendee(
     db: AsyncSession, event_id: uuid.UUID, user_id: uuid.UUID
 ) -> bool:

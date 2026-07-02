@@ -6,8 +6,9 @@ from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ForbiddenError
-from app.features.analytics import crud
+from app.features.analytics import ai, crud
 from app.features.analytics.schemas import (
+    AiAnalyticsSummary,
     AttendanceAnalytics,
     DailySales,
     HourlyCheckIns,
@@ -17,6 +18,7 @@ from app.features.analytics.schemas import (
     TierSales,
 )
 from app.features.events import services as events_services
+from app.features.events.models import Event
 from app.features.organizations import services as orgs_services
 from app.features.users.models import User
 from app.shared.enums import OrgMemberRole
@@ -30,12 +32,16 @@ MEMBER_ROLES = (
 
 async def _require_event_member(
     db: AsyncSession, event_id: uuid.UUID, user: User
-) -> None:
-    """Verify the caller is a member of the event's organization (else 403/404)."""
+) -> Event:
+    """Verify the caller is a member of the event's organization (else 403/404).
+
+    Returns the loaded event so callers can reuse it without a second query.
+    """
     event = await events_services.get_event(db, event_id)  # 404 if missing
     role = await orgs_services.get_user_org_role(db, event.organization_id, user.id)
     if role is None or role not in MEMBER_ROLES:
         raise ForbiddenError("You are not authorized for this event")
+    return event
 
 
 async def _require_org_member(db: AsyncSession, org_id: uuid.UUID, user: User) -> None:
@@ -51,6 +57,11 @@ async def event_sales(
 ) -> SalesAnalytics:
     """Return sales analytics for an event (org member only)."""
     await _require_event_member(db, event_id, user)
+    return await _event_sales_data(db, event_id)
+
+
+async def _event_sales_data(db: AsyncSession, event_id: uuid.UUID) -> SalesAnalytics:
+    """Build the sales analytics for an event (no authorization check)."""
     revenue, orders = await crud.event_sales_totals(db, event_id)
     return SalesAnalytics(
         event_id=event_id,
@@ -79,6 +90,13 @@ async def event_attendance(
 ) -> AttendanceAnalytics:
     """Return attendance analytics for an event (org member only)."""
     await _require_event_member(db, event_id, user)
+    return await _event_attendance_data(db, event_id)
+
+
+async def _event_attendance_data(
+    db: AsyncSession, event_id: uuid.UUID
+) -> AttendanceAnalytics:
+    """Build the attendance analytics for an event (no authorization check)."""
     total, checked_in = await crud.event_attendance_counts(db, event_id)
     rate = round(checked_in / total, 4) if total else 0.0
     return AttendanceAnalytics(
@@ -91,6 +109,23 @@ async def event_attendance(
             HourlyCheckIns(hour=int(r.hour), count=r.count)
             for r in await crud.event_hourly_checkins(db, event_id)
         ],
+    )
+
+
+async def event_ai_summary(
+    db: AsyncSession, event_id: uuid.UUID, user: User
+) -> AiAnalyticsSummary:
+    """Return a natural-language AI summary of an event's analytics (member only).
+
+    Falls back to a deterministic template summary when Gemini is unavailable, so
+    the endpoint always returns a useful paragraph.
+    """
+    event = await _require_event_member(db, event_id, user)
+    sales = await _event_sales_data(db, event_id)
+    attendance = await _event_attendance_data(db, event_id)
+    summary, generated_by_ai = await ai.generate_event_summary(event, sales, attendance)
+    return AiAnalyticsSummary(
+        event_id=event_id, summary=summary, generated_by_ai=generated_by_ai
     )
 
 
